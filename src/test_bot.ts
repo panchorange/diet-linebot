@@ -1,26 +1,37 @@
-import { Client, middleware, MiddlewareConfig, WebhookEvent, TextMessage } from "@line/bot-sdk";
-import express, { Request, Response } from "express";
-
+import type { MiddlewareConfig, WebhookEvent, TextMessage } from "@line/bot-sdk";
+import { Client, middleware } from "@line/bot-sdk";
+import express from "express";
+import type { Request, Response } from "express";
 
 // 環境変数の型安全性を確保
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      LINE_CHANNEL_ACCESS_TOKEN: string;
-      LINE_CHANNEL_SECRET: string;
+      CHANNEL_ACCESS_TOKEN: string;
+      CHANNEL_SECRET: string;
       PORT?: string;
     }
   }
 }
 
-// 1. LINEボットの設定
-const config: MiddlewareConfig = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
-    channelSecret: process.env.LINE_CHANNEL_SECRET!,
+// 環境変数のデバッグ
+console.log("CHANNEL_ACCESS_TOKEN: ", process.env.CHANNEL_ACCESS_TOKEN);
+console.log("CHANNEL_SECRET: ", process.env.CHANNEL_SECRET);
+
+// 1. LINEボットの設定（一つのconfigオブジェクトで統一）
+const config = {
+    channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN!,
+    channelSecret: process.env.CHANNEL_SECRET!,
 };
 
-// 2. LINEクライアントを作成
+// デバッグ：configオブジェクトの中身を確認
+console.log("Config object: ", config);
+console.log("Config channelAccessToken: ", config.channelAccessToken);
+console.log("Config channelSecret: ", config.channelSecret);
+
+// 2. LINEクライアントを作成（同じconfigオブジェクトを使用）
 const client = new Client(config);
+
 
 // 4. イベントを処理する関数
 async function handleEvent(event: WebhookEvent): Promise<any> {
