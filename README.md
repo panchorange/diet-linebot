@@ -70,7 +70,12 @@ docker-compose up -d
 docker-compose down
 ```
 
-#### 4.3 DBeaver でのデータベース接続
+#### 4.3 docker execでのデータベース接続
+```bash
+docker exec -it linebot-db psql -U admin -d linebot-db
+```
+
+#### 4.4 DBeaver でのデータベース接続
 1. DBeaverを起動し、新しい接続を作成
 2. 接続設定：
    - **データベース種類**: PostgreSQL
@@ -80,6 +85,15 @@ docker-compose down
    - **ユーザー名**: admin
    - **パスワード**: hoge
 3. 「接続をテスト」で接続確認後、「完了」をクリック
+
+#### 4.5 prismaを使ったDB管理
+スキーマの更新
+* スキーマの更新は、prisma/migrationsの作成と、対応するdbへの反映を意味する
+* .env.localにdatabase_urlを定義した状態で以下を実行すると、ローカルのpsqlのスキーマ更新がされる
+```bash
+bun run dotenv -e .env.local -- prisma migrate dev --name update_test_prisma_add_comment_nullable_name
+```
+
 
 ### 5. 開発サーバーの起動
 
