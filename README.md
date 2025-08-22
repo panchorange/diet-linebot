@@ -56,19 +56,44 @@ LINE_USER_ID=your_line_user_id_here
 2. 新しいAPIキーを作成
 3. APIキーを `GEMINI_API_KEY` に設定
 
-### 4. 開発サーバーの起動
 
-#### 4.1 ローカルサーバーを起動
+
+### 4. データベースの起動
+
+#### 4.1 PostgreSQLコンテナを起動
+```bash
+docker-compose up -d
+```
+
+#### 4.2 データベースの停止
+```bash
+docker-compose down
+```
+
+#### 4.3 DBeaver でのデータベース接続
+1. DBeaverを起動し、新しい接続を作成
+2. 接続設定：
+   - **データベース種類**: PostgreSQL
+   - **ホスト**: localhost
+   - **ポート**: 5432
+   - **データベース名**: linebot-db
+   - **ユーザー名**: admin
+   - **パスワード**: hoge
+3. 「接続をテスト」で接続確認後、「完了」をクリック
+
+### 5. 開発サーバーの起動
+
+#### 5.1 ローカルサーバーを起動
 ```bash
 bun run src/test_bot.ts
 ```
 
-#### 4.2 ngrokでトンネリング（開発時のみ）
+#### 5.2 ngrokでトンネリング（開発時のみ）
 ```bash
 ngrok http 3000
 ```
 
-#### 4.3 LINE Bot の Webhook URL を設定
+#### 5.3 LINE Bot の Webhook URL を設定
 1. ngrok の出力から `Forwarding` のURLをコピー
    ```
    Forwarding  https://89db444694f2.ngrok-free.app -> http://localhost:3000
@@ -79,7 +104,7 @@ ngrok http 3000
    ```
 3. 「Use webhook」を有効にする
 
-### 5. 動作確認
+### 6. 動作確認
 1. LINE Developer Console で友だち追加用のQRコードを取得
 2. LINEアプリでBotを友だち追加
 3. 食事に関するメッセージや画像を送信して動作確認
