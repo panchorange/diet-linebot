@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// バージョン2: nameをnullableにし、commentカラムを追加
+model test_prisma {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  email     String   @unique
+  createdAt DateTime @default(now())
+  comment   String?
+}
