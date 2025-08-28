@@ -94,6 +94,12 @@ docker exec -it linebot-db psql -U admin -d linebot-db
 bun run dotenv -e .env.local -- prisma migrate dev --name update_test_prisma_add_comment_nullable_name
 ```
 
+* 特定のバージョンまでロールバックしたい場合
+   * 20250822135145_update_test_prisma_add_comment_nullable_name まで戻したいとき
+```bash
+bun run dotenv -e .env.local -- prisma migrate resolve --rolled-back 20250822135145_update_test_prisma_add_comment_nullable_name
+```
+
 
 ### 5. 開発サーバーの起動
 
@@ -123,6 +129,27 @@ ngrok http 3000
 2. LINEアプリでBotを友だち追加
 3. 食事に関するメッセージや画像を送信して動作確認
 
+### 7.リンター%フォーマッター(Biome)
+https://biomejs.dev/ja/guides/getting-started/
+
+
+1. インストール
+```bash
+bun add --dev --exact @biomejs/biome
+```
+
+2. 設定ファイル biome.jsonの初期化（存在しない場合に実行）
+```bash
+bunx --bun biome init
+```
+
+3. リンターとフォーマッターを同時に適用
+```bash
+bunx --bun biome check --write <files>
+```
+
+
+
 ## 機能
 
 - **テキスト分析**: 食事に関するテキストメッセージを分析してPFCバランスとカロリーを評価
@@ -137,3 +164,4 @@ ngrok http 3000
 - **Framework**: Express.js
 - **LINE SDK**: @line/bot-sdk
 - **AI**: Google Gemini 2.0 Flash
+- **Linter&Formatter**: Biome
