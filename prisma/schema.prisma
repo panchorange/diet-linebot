@@ -15,3 +15,78 @@ model test_prisma {
   createdAt DateTime @default(now())
   comment   String?
 }
+
+// ユーザーテーブル
+model user {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model log_meals {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  meal_id   Int
+  meal_type MealType // 朝食、昼食、夕食、間食
+  amount    Float // 量[g]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([user_id])
+  @@index([meal_id])
+}
+
+model log_measure_weight {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  weight    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([user_id])
+}
+
+model log_exercise {
+  id        Int      @id @default(autoincrement())
+  user_id   Int 
+  exercise_id Int
+  exercise_time Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([user_id])
+  @@index([exercise_id])
+}
+
+model mst_meals {
+  id        Int      @id @default(autoincrement())
+  name      String
+  calorie_per_100g   Float // カロリー
+  protein_per_100g   Float // タンパク質
+  fat_per_100g       Float // 脂質
+  carbohydrate_per_100g Float // 炭水化物
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model mst_exercises {
+  id        Int      @id @default(autoincrement())
+  name      String
+  exercise_type ExerciseType // 有酸素運動、筋トレ、その他
+  calorie_consumed_per_1min   Float // 1分あたりの消費カロリー
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([exercise_type])
+}
+
+enum ExerciseType {
+  aerobic_exercise // 有酸素運動
+  strength_training // 筋トレ
+  stretching // ストレッチ
+  other // その他
+}
+
+enum MealType {
+  breakfast // 朝食
+  lunch // 昼食
+  dinner // 夕食
+  snack // 間食
+}

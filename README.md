@@ -91,7 +91,8 @@ docker exec -it linebot-db psql -U admin -d linebot-db
 * スキーマの更新は、prisma/migrationsの作成と、対応するdbへの反映を意味する
 * .env.localにdatabase_urlを定義した状態で以下を実行すると、ローカルのpsqlのスキーマ更新がされる
 ```bash
-bun run dotenv -e .env.local -- prisma migrate dev --name update_test_prisma_add_comment_nullable_name
+bun run dotenv -e .env.local -- prisma migrate dev --name 
+[更新内容を記載]
 ```
 
 * 特定のバージョンまでロールバックしたい場合
@@ -99,6 +100,14 @@ bun run dotenv -e .env.local -- prisma migrate dev --name update_test_prisma_add
 ```bash
 bun run dotenv -e .env.local -- prisma migrate resolve --rolled-back 20250822135145_update_test_prisma_add_comment_nullable_name
 ```
+
+* マイグレーション履歴の確認
+```bash
+bun run dotenv -e .env.local -- prisma migrate status
+```
+
+
+* 更新履歴の確認
 
 
 ### 5. 開発サーバーの起動
