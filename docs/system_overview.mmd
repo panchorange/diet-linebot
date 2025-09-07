@@ -1,0 +1,15 @@
+flowchart LR
+    %% System Overview for Diet LineBot
+    user["User / Group on LINE"] -->|"Message"| line["LINE Platform"]
+    line -->|"POST /webhook"| app["Diet LineBot (Bun App)"]
+
+    %% Replies / Push
+    app -->|"replyMessage"| line
+    scheduler["Weekly Scheduler (Bun)"] -->|"invoke services"| app
+    app -->|"pushMessage"| line
+
+    %% Data stores / External AI
+    app <-->|"SQL via Prisma"| db[("PostgreSQL")]
+    app <-->|"AI API"| gemini["Gemini (LLM)"]
+
+

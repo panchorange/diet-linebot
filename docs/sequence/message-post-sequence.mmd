@@ -1,0 +1,34 @@
+%% ユーザーの投稿（メッセージ）フロー - SequenceDiagram
+sequenceDiagram
+    actor User as ユーザー
+    participant LINE as LINE Platform
+    participant C as Controller(/webhook)
+    participant H as MessageHandler
+    participant US as UserService
+    participant ES as ExerciseService
+    participant DB as PostgreSQL(DB)
+    participant LC as LINE Client
+
+    User->>LINE: メッセージ送信
+    LINE->>C: POST /webhook (events)
+    C->>H: event を委譲
+
+    H->>US: registerOrFetchByLineId(lineUserId, name)
+    US->>DB: upsert users
+    DB-->>US: user
+    US-->>H: user
+
+    alt 運動メッセージ("運動 ...")の場合
+        H->>ES: recordExercise(userId, text)
+        ES->>DB: insert exercise_records
+        DB-->>ES: saved record
+        ES-->>H: 成功メッセージ
+    else 通常メッセージ
+        H->>H: buildHelloMessage(name)
+    end
+
+    H->>LC: replyMessage(replyToken, message)
+    LC-->>LINE: reply
+    LINE-->>User: 返信表示
+
+
