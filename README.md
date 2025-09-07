@@ -42,6 +42,14 @@ PORT=3000
 LINE_USER_ID=your_line_user_id_here
 ```
 
+bunが認識してるか確認。
+* PORT変数を確認したい場合
+```bash
+bun --print "Bun.env.PORT"
+```
+
+
+
 ### 3. 外部サービスの設定
 
 #### 3.1 LINE Developer Console の設定
@@ -86,36 +94,14 @@ docker exec -it linebot-db psql -U admin -d linebot-db
    - **パスワード**: hoge
 3. 「接続をテスト」で接続確認後、「完了」をクリック
 
-#### 4.5 prismaを使ったDB管理
-スキーマの更新
-* スキーマの更新は、prisma/migrationsの作成と、対応するdbへの反映を意味する
-* .env.localにdatabase_urlを定義した状態で以下を実行すると、ローカルのpsqlのスキーマ更新がされる
-```bash
-bun run dotenv -e .env.local -- prisma migrate dev --name 
-[更新内容を記載]
-```
-
-* 特定のバージョンまでロールバックしたい場合
-   * 20250822135145_update_test_prisma_add_comment_nullable_name まで戻したいとき
-```bash
-bun run dotenv -e .env.local -- prisma migrate resolve --rolled-back 20250822135145_update_test_prisma_add_comment_nullable_name
-```
-
-* マイグレーション履歴の確認
-```bash
-bun run dotenv -e .env.local -- prisma migrate status
-```
-
-
-* 更新履歴の確認
-
 
 ### 5. 開発サーバーの起動
 
 #### 5.1 ローカルサーバーを起動
 ```bash
-bun run src/test_bot.ts
+bun --env-file=.env.local run src/index.ts
 ```
+localhost:3000でサーバーが起動する。
 
 #### 5.2 ngrokでトンネリング（開発時のみ）
 ```bash
@@ -158,7 +144,6 @@ bunx --bun biome check --write <files>
 ```
 
 
-
 ## 機能
 
 - **テキスト分析**: 食事に関するテキストメッセージを分析してPFCバランスとカロリーを評価
@@ -174,3 +159,43 @@ bunx --bun biome check --write <files>
 - **LINE SDK**: @line/bot-sdk
 - **AI**: Google Gemini 2.0 Flash
 - **Linter&Formatter**: Biome
+
+
+## prisma関連
+
+スキーマの更新
+* スキーマの更新は、prisma/migrationsの作成と、対応するdbへの反映を意味する
+* .env.localにdatabase_urlを定義した状態で以下を実行すると、ローカルのpsqlのスキーマ更新がされる
+```bash
+bun run dotenv -e .env.local -- prisma migrate dev --name
+[更新内容を記載]
+```
+
+* 特定のバージョンまでロールバックしたい場合
+   * 20250822135145_update_test_prisma_add_comment_nullable_name まで戻したいとき
+```bash
+bun run dotenv -e .env.local -- prisma migrate resolve --rolled-back 20250822135145_update_test_prisma_add_comment_nullable_name
+```
+
+* マイグレーション履歴の確認
+```bash
+bun run dotenv -e .env.local -- prisma migrate status
+```
+
+
+* prisma studioの起動: データの確認
+```bash
+bun run dotenv -e .env.local -- prisma studio &
+```
+
+* ER図の生成
+前提条件. prisma/schema.prismaで"prisma-erd-generator"の設定をしておく
+```bash
+bun prisma generate
+```
+
+* mmdからsvg生成
+docs/architecture.mmdからsvgを生成する場合
+```bash
+./node_modules/.bin/mmdc -i docs/system_overview.md -o docs/system_overview.md -b transparent -t neutral
+```

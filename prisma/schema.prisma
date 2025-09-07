@@ -2,91 +2,184 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../docs/database/ERD.svg"  // .svg/.png/.pdf/.md が選べる
+  theme    = "forest"                     // 任意: default/forest/dark/neutral
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// バージョン2: nameをnullableにし、commentカラムを追加
-model test_prisma {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  email     String   @unique
-  createdAt DateTime @default(now())
-  comment   String?
+
+// ============================================================================
+// 内部スキーマ（Internal Schema）- 物理層
+// 実際のデータベーステーブル定義
+// ============================================================================
+
+// ユーザー基本情報テーブル
+model User {
+  id          String   @id @default(cuid())
+  lineUserId  String   @unique
+  displayName String
+  height      Float?   // 身長[cm]
+  age         Int?     // 年齢
+  gender      Gender?  // 性別
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // リレーション
+  weightRecords    WeightRecord[]
+  mealRecords      MealRecord[]
+  exerciseRecords  ExerciseRecord[]
+  llmEvaluations   LlmEvaluation[]
+  
+  @@map("users")
 }
 
-// ユーザーテーブル
-model user {
-  id        Int      @id @default(autoincrement())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// 食事マスタテーブル
+model MealMaster {
+  id                   String @id @default(cuid())
+  name                 String
+  caloriePer100g       Float  // カロリー/100g
+  proteinPer100g       Float  // タンパク質/100g
+  fatPer100g           Float  // 脂質/100g
+  carbohydratePer100g  Float  // 炭水化物/100g
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // リレーション
+  mealRecords MealRecord[]
+  
+  @@map("mst_meals")
 }
 
-model log_meals {
-  id        Int      @id @default(autoincrement())
-  user_id   Int
-  meal_id   Int
-  meal_type MealType // 朝食、昼食、夕食、間食
-  amount    Float // 量[g]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([user_id])
-  @@index([meal_id])
+// 食事記録テーブル
+model MealRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  mealId     String
+  mealType   MealType // 朝食、昼食、夕食、間食
+  amount     Float    // 量[g]
+  recordedAt DateTime // 記録日時
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // リレーション
+  user User        @relation(fields: [userId], references: [id])
+  meal MealMaster  @relation(fields: [mealId], references: [id])
+  
+  @@index([userId])
+  @@index([mealId])
+  @@index([recordedAt])
+  @@map("meal_records")
 }
 
-model log_measure_weight {
-  id        Int      @id @default(autoincrement())
-  user_id   Int
-  weight    Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([user_id])
+// 運動マスタテーブル
+model ExerciseMaster {
+  id                       Int          @id @default(autoincrement())
+  name                     String
+  exerciseType             ExerciseType // 有酸素運動、筋トレ、その他
+  calorieConsumedPer1min   Float        // 1分あたりの消費カロリー
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+  
+  // リレーション
+  exerciseRecords ExerciseRecord[]
+  
+  @@index([exerciseType])
+  @@map("mst_exercises")
 }
 
-model log_exercise {
-  id        Int      @id @default(autoincrement())
-  user_id   Int 
-  exercise_id Int
-  exercise_time Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([user_id])
-  @@index([exercise_id])
+// 運動記録テーブル
+model ExerciseRecord {
+  id              String   @id @default(cuid())
+  userId          String
+  exerciseId      Int
+  durationMinutes Int      // 運動時間[分]
+  caloriesBurned  Float    // 消費カロリー
+  recordedAt      DateTime // 記録日時
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // リレーション
+  user     User           @relation(fields: [userId], references: [id])
+  exercise ExerciseMaster @relation(fields: [exerciseId], references: [id])
+  
+  @@index([userId])
+  @@index([exerciseId])
+  @@index([recordedAt])
+  @@map("exercise_records")
 }
 
-model mst_meals {
-  id        Int      @id @default(autoincrement())
-  name      String
-  calorie_per_100g   Float // カロリー
-  protein_per_100g   Float // タンパク質
-  fat_per_100g       Float // 脂質
-  carbohydrate_per_100g Float // 炭水化物
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// 体重記録テーブル
+model WeightRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  weight     Float    // 体重[kg]
+  bmi        Float?   // BMI（計算値）
+  recordedAt DateTime // 記録日時
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // リレーション
+  user User @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([recordedAt])
+  @@map("weight_records")
 }
 
-model mst_exercises {
-  id        Int      @id @default(autoincrement())
-  name      String
-  exercise_type ExerciseType // 有酸素運動、筋トレ、その他
-  calorie_consumed_per_1min   Float // 1分あたりの消費カロリー
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([exercise_type])
+// LLM評価結果テーブル
+model LlmEvaluation {
+  id             String         @id @default(cuid())
+  userId         String
+  evaluationType EvaluationType // 評価タイプ（食事、運動、体重）
+  targetDate     DateTime       // 評価対象日
+  evaluation     String         // LLMによる評価コメント
+  score          Int?           // 評価スコア（1-10）
+  suggestions    String?        // 改善提案
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  
+  // リレーション
+  user User @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([evaluationType])
+  @@index([targetDate])
+  @@map("llm_evaluations")
+}
+
+// ============================================================================
+// Enum定義
+// ============================================================================
+
+enum Gender {
+  male   // 男性
+  female // 女性
+  other  // その他
 }
 
 enum ExerciseType {
-  aerobic_exercise // 有酸素運動
-  strength_training // 筋トレ
-  stretching // ストレッチ
-  other // その他
+  aerobicExercise  // 有酸素運動
+  strengthTraining // 筋トレ
+  stretching       // ストレッチ
+  other           // その他
 }
 
 enum MealType {
   breakfast // 朝食
-  lunch // 昼食
-  dinner // 夕食
-  snack // 間食
+  lunch     // 昼食
+  dinner    // 夕食
+  snack     // 間食
+}
+
+enum EvaluationType {
+  meal     // 食事評価
+  exercise // 運動評価
+  weight   // 体重評価
+  overall  // 総合評価
 }

@@ -1,0 +1,24 @@
+%% 週次レポート配信フロー - SequenceDiagram
+sequenceDiagram
+    participant S as Weekly Scheduler
+    participant WRS as ExerciseWeeklyReportService
+    participant DB as PostgreSQL(DB)
+    participant LC as LINE Client
+    participant LINE as LINE Platform
+    actor User as ユーザー
+
+    S->>DB: findMany users(id, lineUserId)
+    DB-->>S: users[]
+
+    loop 各ユーザーごと
+        S->>WRS: generateWeeklyReport(userId)
+        WRS->>DB: aggregate/groupBy exercise_records
+        DB-->>WRS: totals/mode
+        WRS-->>S: report message
+
+        S->>LC: pushMessage(lineUserId, message)
+        LC-->>LINE: push
+        LINE-->>User: 受信表示
+    end
+
+
