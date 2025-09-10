@@ -1,6 +1,9 @@
 # diet-linebot
 ダイエット継続を目的としたLINEbot
 
+## このREADMEの目的
+このREADMEは「アプリを動かす/統合テストを行うための最短手順」を提供します。設計や拡張の指針など開発者向け詳細は `docs/README.md` を参照してください（役割が異なります）。
+
 ## 環境構築手順
 
 ### 1. 前提条件
@@ -199,3 +202,7 @@ docs/architecture.mmdからsvgを生成する場合
 ```bash
 ./node_modules/.bin/mmdc -i docs/system_overview.md -o docs/system_overview.md -b transparent -t neutral
 ```
+
+## 関連READMEの役割
+- `README.md`（本ファイル）: 動作確認・統合テストをしたい人向けの最短ガイド
+- `docs/README.md`: 機能追加や保守運用を行う開発者向け。設計書の索引、関係性、実装入力のガイド
