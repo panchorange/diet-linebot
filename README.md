@@ -197,12 +197,13 @@ bun run dotenv -e .env.local -- prisma studio &
 bun prisma generate
 ```
 
-* mmdからsvg生成
-docs/architecture.mmdからsvgを生成する場合
+* mmdからsvg生成（必要な場合のみ）
 ```bash
-./node_modules/.bin/mmdc -i docs/system_overview.md -o docs/system_overview.md -b transparent -t neutral
+./node_modules/.bin/mmdc -i docs/system_overview.mmd -o docs/system_overview.svg -b transparent -t neutral
+./node_modules/.bin/mmdc -i docs/sequence/message-post-sequence.mmd -o docs/sequence/message-post-sequence.svg -b transparent -t neutral
+./node_modules/.bin/mmdc -i docs/sequence/weekly-report.mmd -o docs/sequence/weekly-report.svg -b transparent -t neutral
 ```
 
 ## 関連READMEの役割
 - `README.md`（本ファイル）: 動作確認・統合テストをしたい人向けの最短ガイド
-- `docs/README.md`: 機能追加や保守運用を行う開発者向け。設計書の索引、関係性、実装入力のガイド
+- `docs/README.md`: 機能追加や保守運用を行う開発者向け。設計書の索引、関係性、実装入力のガイド（機能一覧は `docs/feature_list/feature_list.md`、構成は `docs/structure/project-structure.md`）
