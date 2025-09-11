@@ -14,7 +14,7 @@
 | database/ERD.svg | `docs/database/ERD.svg` | ERDの画像版（レビュー/共有用）。 |
 | sequence/message-post-sequence.mmd | `docs/sequence/message-post-sequence.mmd` | Webhook受信→処理→返信の時系列。メッセージ投稿の詳細フロー。 |
 | sequence/weekly-report.mmd | `docs/sequence/weekly-report.mmd` | 週次レポート生成→Pushの時系列。スケジューラの詳細フロー。 |
-| project-structure.md | `docs/structure/project-structure.md` | リポジトリのディレクトリ構成図（Mermaid）。レイヤ/責務/依存の俯瞰。 |
+| project-structure.md | `docs/structure/project-structure.md` | リポジトリのディレクトリ構成（tree形式）。レイヤ/責務/依存の俯瞰。 |
 
 ### ドキュメント間の関係性（インプット → アウトプット）
 
@@ -37,7 +37,7 @@
 ### 生成・更新の推奨フロー
 
 1. requirements.md を更新（要求変更の取り込み）
-2. features.md を更新（対象機能/優先度の見直し）
+2. feature_list.md を更新（対象機能/優先度の見直し、ブランチ名の管理）
 3. system_overview.mmd / architecture.svg を更新（構成影響を反映）
 4. database/ERD.md を更新（データ構造の反映。必要に応じて `prisma/schema.prisma` と整合）
 5. sequence/*.mmd を更新（処理フローの確定）
