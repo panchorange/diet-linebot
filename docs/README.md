@@ -52,10 +52,46 @@
   - `GET /reports/exercise/weekly` → `domain/services/exerciseWeeklyReportService`
   - 起動時に `presentation/scheduler/weeklyReportScheduler.ts` を開始
 - レイヤ: Presentation → Domain → Infrastructure（一方向）
-- 主なサービス: `userService`, `exerciseService`, `exerciseWeeklyReportService`
+- 主なサービス: `userService`, `exerciseAdvice`（エクスポート名は `exerciseService` 互換）, `exerciseWeeklyReportService`
 - Prisma: `infrastructure/prisma/client.ts`（DB I/O）、`repositories/PrismaUserRepository.ts`
 
 詳細な実装の説明は各ソースファイルの先頭コメントを参照してください。
+
+### DBシード（`prisma/seed.ts`）
+
+- **役割**
+  - **オーケストレーション**: PrismaClient の初期化/終了、各マスタ用シード関数の実行順序を制御。
+  - **再実行可能性（idempotent）**: 何度流しても同じ最終状態になることを保証。
+  - **失敗の早期検知**: 例外でプロセスを失敗させ、CI/デプロイで不整合を検出。
+
+- **ユースケース**
+  - **初期構築/環境再構築**: 空DBへマスタ投入（例: `mst_exercises`）。
+  - **マスタ同期**: 追加/更新を反映し、未使用レコードは安全に削除（参照ありは削除しない）。
+  - **マイグレーション後の整合確保**: スキーマ変更後に再投入して整合性を維持。
+  - **本番の緊急修正を反映**: 一時的にGUIで修正した内容をシードへ取り込み、ソース・オブ・トゥルースをコードに戻す。
+
+- **使い方**
+  - **前提**
+    - `DATABASE_URL` が設定済み。
+    - スキーマ適用済み: `bun run db:migrate`
+  - **実行方法**
+    - 方式A（推奨・設定あり）
+      1) `package.json` に Prisma の seed スクリプトを設定: `"prisma": { "seed": "bun prisma/seed.ts" }`
+      2) 実行: `bunx prisma db seed`
+    - 方式B（設定なしでも可）
+      - 直接実行: `bun prisma/seed.ts`
+  - **確認**
+    - `bun run db:studio` でデータをGUI確認。
+
+- **実装メモ**
+  - マスタごとの同期ロジックは `prisma/seeds/*` に分割（例: `prisma/seeds/exerciseMaster.ts`）。
+  - 参照があるレコードは削除しない方針（必要なら `isActive` 列で論理削除を検討）。
+  - `ExerciseMaster` では `upsert + 未使用の安全な削除` を実装済み。
+
+- **関連ファイル**
+  - `prisma/seed.ts`
+  - `prisma/seeds/exerciseMaster.ts`
+  - `prisma/schema.prisma`
 
 ### 備考
 

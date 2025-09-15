@@ -65,6 +65,7 @@ async function handleExercisePost(replyToken: string, userId: string, message: s
         console.log(`[Exercise] Sending reply: ${result.message}`)
         await lineClient.replyMessage(replyToken, {
             type: "text",
+
             text: result.message
         })
         console.log(`[Exercise] Reply sent successfully`)

@@ -36,5 +36,8 @@
         "docs:generate": "bun prisma generate && ./node_modules/.bin/mmdc -i docs/database/ERD.mmd -o docs/database/ERD.svg -b transparent",
         "lint": "biome check .",
         "lint:fix": "biome check --write ."
+    },
+    "prisma": {
+        "seed": "bun prisma/seed.ts"
     }
 }

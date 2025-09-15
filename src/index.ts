@@ -2,7 +2,8 @@
 import { env } from "./config/env"
 import { lineWebhookController } from "./presentation/controllers/lineWebhookController"
 import { startExerciseWeeklyReportScheduler } from "./presentation/scheduler/weeklyReportScheduler"
-import { exerciseWeeklyReportService } from "./presentation/wiring/serviceLocator"
+
+// import { exerciseWeeklyReportService } from "./presentation/wiring/serviceLocator"
 
 const server = Bun.serve({
     port: env.server.port,
@@ -11,22 +12,23 @@ const server = Bun.serve({
         if (req.method === "POST" && url.pathname === "/webhook") {
             return lineWebhookController(req)
         }
-        if (req.method === "GET" && url.pathname === "/reports/exercise/weekly") {
-            const userId = url.searchParams.get("userId")
-            if (!userId) {
-                return new Response("Missing userId", { status: 400 })
-            }
-            try {
-                const report = await exerciseWeeklyReportService.generateWeeklyReport(userId)
-                return new Response(JSON.stringify(report), {
-                    status: 200,
-                    headers: { "content-type": "application/json" }
-                })
-            } catch (e) {
-                console.error(e)
-                return new Response("failed", { status: 500 })
-            }
-        }
+        // 週次レポートは一旦無効化(TODO: 後で有効化)
+        // if (req.method === "GET" && url.pathname === "/reports/exercise/weekly") {
+        //     const userId = url.searchParams.get("userId")
+        //     if (!userId) {
+        //         return new Response("Missing userId", { status: 400 })
+        //     }
+        //     try {
+        //         const report = await exerciseWeeklyReportService.generateWeeklyReport(userId)
+        //         return new Response(JSON.stringify(report), {
+        //             status: 200,
+        //             headers: { "content-type": "application/json" }
+        //         })
+        //     } catch (e) {
+        //         console.error(e)
+        //         return new Response("failed", { status: 500 })
+        //     }
+        // }
         return new Response("surver is running")
     }
 })

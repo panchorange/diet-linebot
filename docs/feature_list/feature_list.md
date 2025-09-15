@@ -9,7 +9,7 @@
 
 ## 1. ユーザー登録・認証
 - 説明: LINEの`userId`で自動識別。初回メッセージ時に登録/更新。
-- ブランチ名: `feature/user-auth`
+- ブランチ名: `feature/userAuth`
 - シーケンス: なし（メッセージ投稿フロー内で内包）
 - 関連ファイル: `src/presentation/handlers/messageHandler.ts`, `src/domain/services/userService.ts`
 
@@ -26,18 +26,18 @@
 - 関連ファイル: 
     - `src/presentation/controllers/lineWebhookController.ts`
     - `src/presentation/handlers/messageHandler.ts`
-    - `src/domain/services/exerciseService.ts`
+    - `src/domain/services/exerciseAdvice.ts`
 
 ## 4. 体重記録アドバイス
 - 説明: 体重記録の投稿を解析し、`weight_records`へ保存、返信。
-- ブランチ名: `feature/weight-tracking`
+- ブランチ名: `feature/weightTracking`
 - シーケンス図: `docs/sequence/weight-post-sequence.mmd`
 - 関連ファイル: `src/presentation/controllers/lineWebhookController.ts`
 
 
 ## 5. 週次レポート
 - 説明: 1週間の運動、食事、体重の記録に対するアドバイスを返す。
-- ブランチ名: `feature/weekly-report` ✅ **実装済み（運動のみ）**
+- ブランチ名: `feature/weeklyReport` ✅ **実装済み（運動のみ）**
 - シーケンス図: `docs/sequence/weekly-report-sequence.mmd`
 - 関連ファイル: `src/presentation/scheduler/weeklyReportScheduler.ts`, `src/domain/services/exerciseWeeklyReportService.ts`
 
@@ -49,7 +49,7 @@
 
 ## 7. データ分析・レポート拡張
 - 説明: カロリー収支/傾向分析の追加。週次レポートの食事・体重対応。
-- ブランチ名: `feature/analytics-enhancement`
+- ブランチ名: `feature/analyticsEnhancement`
 - シーケンス図: `docs/flows/weekly-report.mmd`
 - 関連ファイル: `src/presentation/scheduler/weeklyReportScheduler.ts`, `src/domain/services/exerciseWeeklyReportService.ts`
 
