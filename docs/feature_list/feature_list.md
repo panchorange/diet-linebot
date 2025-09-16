@@ -32,7 +32,14 @@
 - 説明: 体重記録の投稿を解析し、`weight_records`へ保存、返信。
 - ブランチ名: `feature/weightTracking`
 - シーケンス図: `docs/sequence/weight-post-sequence.mmd`
-- 関連ファイル: `src/presentation/controllers/lineWebhookController.ts`
+- 関連ファイル:
+    - `src/presentation/controllers/lineWebhookController.ts`
+    - `src/presentation/validators/lineEventValidator.ts`
+    - `src/presentation/handlers/messageHandler.ts`
+    - `src/domain/services/weightAdvice.ts`            # LLM解析・異常判定・INSERT
+    - `src/domain/services/prompts/weightAdvice.ts`   # プロンプト構築
+    - `src/infrastructure/prisma/client.ts`
+    - `src/infrastructure/line/lineMessageBuilder.ts`
 
 
 ## 5. 週次レポート
