@@ -2,7 +2,7 @@
 import type { WebhookEvent } from "@line/bot-sdk"
 import { lineClient } from "../../config/lineClient"
 import { buildHelloMessage } from "../../infrastructure/line/lineMessageBuilder"
-import { exerciseService, userService } from "../../presentation/wiring/serviceLocator"
+import { exerciseService, userService, weightAdviceService } from "../../presentation/wiring/serviceLocator"
 
 export async function messageHandler(event: WebhookEvent) {
     console.log("[MessageHandler] Starting message processing...")
@@ -44,6 +44,13 @@ export async function messageHandler(event: WebhookEvent) {
         return
     }
 
+    // 🆕 体重投稿の判定
+    if (userMessage.startsWith("体重")) {
+        console.log(`[MessageHandler] Weight message detected: "${userMessage}"`)
+        await handleWeightPost(event.replyToken, user.id, userMessage)
+        return
+    }
+
     // 既存のhelloメッセージ処理
     console.log(`[MessageHandler] Default hello message for: ${user.name}`)
     const reply = buildHelloMessage(user.name)
@@ -75,6 +82,23 @@ async function handleExercisePost(replyToken: string, userId: string, message: s
         await lineClient.replyMessage(replyToken, {
             type: "text",
             text: "申し訳ございません。運動記録の保存に失敗しました。もう一度お試しください。"
+        })
+    }
+}
+
+//  体重投稿処理
+async function handleWeightPost(replyToken: string, userId: string, message: string) {
+    try {
+        console.log(`[Weight] Processing: ${message}`)
+        const result = await weightAdviceService.recordWeight(userId, message)
+        console.log(`[Weight] Service returned:`, result)
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
+        console.log(`[Weight] Reply sent successfully`)
+    } catch (error) {
+        console.error("[Weight] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "申し訳ございません。体重記録の保存に失敗しました。もう一度お試しください。"
         })
     }
 }
