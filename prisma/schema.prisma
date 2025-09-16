@@ -41,7 +41,7 @@ model User {
 
 // 食事マスタテーブル
 model MealMaster {
-  id                   String @id @default(cuid())
+  id                   Int  @id @default(autoincrement())
   name                 String
   caloriePer100g       Float  // カロリー/100g
   proteinPer100g       Float  // タンパク質/100g
@@ -60,7 +60,7 @@ model MealMaster {
 model MealRecord {
   id         String   @id @default(cuid())
   userId     String
-  mealId     String
+  mealId     Int
   mealType   MealType // 朝食、昼食、夕食、間食
   amount     Float    // 量[g]
   recordedAt DateTime // 記録日時

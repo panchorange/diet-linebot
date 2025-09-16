@@ -87,10 +87,14 @@
   - マスタごとの同期ロジックは `prisma/seeds/*` に分割（例: `prisma/seeds/exerciseMaster.ts`）。
   - 参照があるレコードは削除しない方針（必要なら `isActive` 列で論理削除を検討）。
   - `ExerciseMaster` では `upsert + 未使用の安全な削除` を実装済み。
+  - `MealMaster` も同様に `upsert + 未使用の安全な削除`。主キーは Int（1〜50）。
+  - `mst_meals.id` のシーケンスはシード時に MAX(id) に調整。
+  - 栄養成分は100gあたりの概算値。厳密さよりも実用性重視で、将来の補正を許容。
 
 - **関連ファイル**
   - `prisma/seed.ts`
   - `prisma/seeds/exerciseMaster.ts`
+  - `prisma/seeds/mealMaster.ts`
   - `prisma/schema.prisma`
 
 ### 備考
