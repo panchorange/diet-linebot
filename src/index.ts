@@ -1,7 +1,8 @@
 // 役割: Bun サーバのエントリポイント。/webhook を presentation 層に委譲
 import { env } from "./config/env"
 import { lineWebhookController } from "./presentation/controllers/lineWebhookController"
-import { startExerciseWeeklyReportScheduler } from "./presentation/scheduler/weeklyReportScheduler"
+
+// import { startExerciseWeeklyReportScheduler } from "./presentation/scheduler/weeklyReportScheduler"
 
 // import { exerciseWeeklyReportService } from "./presentation/wiring/serviceLocator"
 
@@ -34,6 +35,6 @@ const server = Bun.serve({
 })
 
 // デバッグ用: 毎分自動で全ユーザーの週次レポートをログ出力
-startExerciseWeeklyReportScheduler(60_000)
+// startExerciseWeeklyReportScheduler(60_000)
 
 console.log(`🚀 Server listening on http://localhost:${server.port}`)
