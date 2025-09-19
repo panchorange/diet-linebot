@@ -69,6 +69,7 @@ model MealRecord {
   fat        Float? // 脂質
   carbohydrate Float? // 炭水化物
   advice     String? // アドバイス
+  score      Int? // 評価スコア（1-100）
   recordedAt DateTime // 記録日時
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

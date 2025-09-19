@@ -61,7 +61,22 @@ export async function messageHandler(event: WebhookEvent) {
     // 🆕 食事投稿の判定（テキストが「食事」で始まる、または画像）
     if ((isText && userMessage.startsWith("食事")) || isImage) {
         console.log(`[MessageHandler] Meal message/image detected`)
-        await handleMealPost(event.replyToken, user.id, userMessage, isImage ? "LINE_IMAGE_PLACEHOLDER" : undefined)
+        let imageBase64: string | undefined
+        if (isImage) {
+            try {
+                const messageId = (event.message as { type: "image"; id: string }).id
+                const stream = await lineClient.getMessageContent(messageId)
+                const chunks: Buffer[] = []
+                imageBase64 = await new Promise<string>((resolve, reject) => {
+                    stream.on("data", (chunk: Buffer) => chunks.push(chunk))
+                    stream.on("end", () => resolve(Buffer.concat(chunks).toString("base64")))
+                    stream.on("error", reject)
+                })
+            } catch (e) {
+                console.error("[MessageHandler] Failed to download image content:", e)
+            }
+        }
+        await handleMealPost(event.replyToken, user.id, userMessage, imageBase64)
         return
     }
 
@@ -72,10 +87,10 @@ export async function messageHandler(event: WebhookEvent) {
     console.log(`[MessageHandler] Hello message sent`)
 }
 //  食事投稿処理
-async function handleMealPost(replyToken: string, userId: string, message: string, imageUrl?: string) {
+async function handleMealPost(replyToken: string, userId: string, message: string, imageBase64?: string) {
     try {
         console.log(`[Meal] Processing: ${message}`)
-        const result = await mealAdviceService.recordMeal(userId, message, imageUrl)
+        const result = await mealAdviceService.recordMeal(userId, message, imageBase64)
         console.log(`[Meal] Service returned:`, result)
         await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
         console.log(`[Meal] Reply sent successfully`)

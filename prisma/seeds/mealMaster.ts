@@ -399,6 +399,86 @@ export async function seedMealMaster() {
             proteinPer100g: 5,
             fatPer100g: 3,
             carbohydratePer100g: 28
+        },
+        {
+            id: 51,
+            name: "豚骨ラーメン",
+            caloriePer100g: 170,
+            proteinPer100g: 7,
+            fatPer100g: 7,
+            carbohydratePer100g: 22
+        },
+        {
+            id: 52,
+            name: "麻婆豆腐",
+            caloriePer100g: 140,
+            proteinPer100g: 7,
+            fatPer100g: 9,
+            carbohydratePer100g: 6
+        },
+        {
+            id: 53,
+            name: "カルボナーラ",
+            caloriePer100g: 240,
+            proteinPer100g: 9,
+            fatPer100g: 13,
+            carbohydratePer100g: 26
+        },
+        {
+            id: 54,
+            name: "牛乳",
+            caloriePer100g: 67,
+            proteinPer100g: 3.3,
+            fatPer100g: 3.8,
+            carbohydratePer100g: 4.8
+        },
+        {
+            id: 55,
+            name: "担々麺",
+            caloriePer100g: 190,
+            proteinPer100g: 7,
+            fatPer100g: 9,
+            carbohydratePer100g: 23
+        },
+        {
+            id: 56,
+            name: "ビール",
+            caloriePer100g: 40,
+            proteinPer100g: 0.3,
+            fatPer100g: 0,
+            carbohydratePer100g: 3.1
+        },
+        {
+            id: 57,
+            name: "日本酒",
+            caloriePer100g: 103,
+            proteinPer100g: 0.4,
+            fatPer100g: 0,
+            carbohydratePer100g: 3.6
+        },
+        {
+            id: 58,
+            name: "ワイン(赤)",
+            caloriePer100g: 73,
+            proteinPer100g: 0.2,
+            fatPer100g: 0,
+            carbohydratePer100g: 2.6
+        },
+        {
+            id: 59,
+            name: "ハイボール",
+            caloriePer100g: 40,
+            proteinPer100g: 0,
+            fatPer100g: 0,
+            carbohydratePer100g: 0
+        },
+        {
+            id: 60,
+            name: "チューハイ(レモン)",
+            caloriePer100g: 54,
+            proteinPer100g: 0,
+            fatPer100g: 0,
+            carbohydratePer100g: 5
         }
     ]
 
