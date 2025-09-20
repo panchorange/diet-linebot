@@ -171,7 +171,8 @@ export class MealAdviceService {
         }
 
         return {
-            advice: message,
+            message,
+            advice,
             mealTypeLabel: mealType ? typeLabel : null,
             score: Number.isFinite(parsedScore) ? Math.round(parsedScore) : null
         }
