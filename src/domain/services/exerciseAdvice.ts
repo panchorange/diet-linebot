@@ -1,13 +1,7 @@
 import { aiClient } from "../../config/aiClient"
 import { prisma } from "../../infrastructure/prisma/client"
+import type { ExerciseSavedView } from "../models/ExternalViews"
 import { buildExerciseExtractionPrompt } from "./prompts/exerciseAdvice"
-
-export interface ExerciseSavedView {
-    exerciseName: string
-    duration: number
-    caloriesBurned: number
-    message: string
-}
 
 export class ExerciseAdviceService {
     async recordExercise(userId: string, text: string): Promise<ExerciseSavedView> {
@@ -61,7 +55,7 @@ export class ExerciseAdviceService {
             exerciseName: name,
             duration,
             caloriesBurned: caloriesToStore,
-            message: `✅ 運動を記録しました\n🏃‍♂️ ${name}\n⏰ ${duration}分\n🔥 ${caloriesToStore}kcal`
+            advice: `✅ 運動を記録しました\n🏃‍♂️ ${name}\n⏰ ${duration}分\n🔥 ${caloriesToStore}kcal`
         }
     }
 }
