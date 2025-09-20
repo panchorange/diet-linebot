@@ -1,10 +1,8 @@
 import { v4 as uuidv4 } from "uuid"
 import { aiClient } from "../../config/aiClient"
 import { prisma } from "../../infrastructure/prisma/client"
+import type { MealSavedView } from "../models/ExternalViews"
 import { buildMealExtractionPrompt } from "./prompts/mealAdvice"
-export interface MealSavedView {
-    message: string
-}
 
 export class MealAdviceService {
     async recordMeal(_userId: string, text: string, imageBase64?: string | null): Promise<MealSavedView> {
@@ -117,6 +115,7 @@ export class MealAdviceService {
 
         const lines: string[] = []
         if (mealType) lines.push(`区分: ${typeLabel}`)
+        if (mealType) lines.push("")
         for (const it of normalizedItems) {
             const name = it.mealName || (it.mealId != null ? idToMaster.get(it.mealId)?.name : undefined) || "(不明)"
             lines.push(`🍽️ ${name} ${Math.round(Number(it.amountGrams))}g`)
@@ -137,9 +136,9 @@ export class MealAdviceService {
             `平均/食: たんぱく質 ${Math.round(avgProtein)} g | 脂質 ${Math.round(avgFat)} g | 炭水化物 ${Math.round(avgCarbohydrate)} g`
         ].join("\n")
 
-        const scoreLine = Number.isFinite(parsedScore) ? `\n📊 スコア: ${Math.round(parsedScore)}/100` : ""
+        const scoreLine = Number.isFinite(parsedScore) ? `\n\n📊 スコア: ${Math.round(parsedScore)}/100` : ""
         const message = isMeal
-            ? `✅ 食事投稿を解析しました\n${summary || "(詳細不明)"}\n${summary24h}${scoreLine}\n💡 ${advice || "必要に応じて量や品目を教えてください。"}`
+            ? `✅ 食事投稿を解析しました\n${summary || "(詳細不明)"}\n\n${summary24h}${scoreLine}\n\n💡 ${advice || "必要に応じて量や品目を教えてください。"}`
             : `ℹ️ 食事の投稿ではない可能性があります。\n${advice || "食事の内容や量をもう少し具体的に教えてください。"}\n${summary24h}`
 
         // 2 ) DB保存（内部スキーマ）: 同一 userMealId で複数行
@@ -171,7 +170,11 @@ export class MealAdviceService {
             await prisma.mealRecord.createMany({ data: rows })
         }
 
-        return { message }
+        return {
+            advice: message,
+            mealTypeLabel: mealType ? typeLabel : null,
+            score: Number.isFinite(parsedScore) ? Math.round(parsedScore) : null
+        }
     }
 }
 

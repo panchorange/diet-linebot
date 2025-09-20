@@ -1,10 +1,7 @@
 import { aiClient } from "../../config/aiClient"
 import { prisma } from "../../infrastructure/prisma/client"
+import type { WeightSavedView } from "../models/ExternalViews"
 import { buildWeightAdvicePrompt } from "./prompts/weightAdvice"
-
-export interface WeightSavedView {
-    message: string
-}
 
 export class WeightAdviceService {
     async recordWeight(userId: string, text: string): Promise<WeightSavedView> {
@@ -40,8 +37,11 @@ export class WeightAdviceService {
 
         // 3) 異常なら保存せずリプライ
         if (isAnomalous) {
-            const message = `⚠️ 体重の変化が急すぎる可能性があります。\n${advice || "記録をもう一度ご確認ください。"}`
-            return { message }
+            return {
+                weight: weight || 0,
+                bmi: 0,
+                advice: `⚠️ 体重の変化が急すぎる可能性があります。\n${advice || "記録をもう一度ご確認ください。"}`
+            }
         }
 
         // 4) 正常ならBMI計算とINSERT（kgが取れている場合のみ）
@@ -72,10 +72,15 @@ export class WeightAdviceService {
             })
         }
 
-        const message = `✅ 体重を記録しました。\n${
+        const adviceAsMessage = `✅ 体重を記録しました。\n${
             Number.isFinite(weight) ? `体重: ${Number(weight)}kg\n${bmiLine}` : "体重の数値が取得できませんでした"
         }\n${advice || "引き続き無理のない範囲で継続しましょう。"}`
-        return { message }
+
+        return {
+            weight: Number.isFinite(weight) ? Number(weight) : 0,
+            bmi: bmiValue || 0,
+            advice: adviceAsMessage
+        }
     }
 }
 

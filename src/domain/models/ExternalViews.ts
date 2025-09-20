@@ -4,7 +4,7 @@ export interface ExerciseSavedView {
     exerciseName: string
     duration: number
     caloriesBurned: number
-    message: string
+    advice: string
 }
 
 export interface ExerciseWeeklyReportView {
@@ -17,4 +17,21 @@ export interface ExerciseWeeklyReportView {
     totalCalories: number
     modeExercise: string // 最も多く行った運動
     message: string
+}
+
+// 食事保存時に返信に使う外部ビュー
+export interface MealSavedView {
+    // 返信用の整形済みメッセージ
+    advice: string
+    // 将来的な利用に備えて最低限のメタ情報を併せて返す
+    mealTypeLabel?: string | null // "朝食" | "昼食" | "夕食" | "間食" | null
+    score?: number | null
+}
+
+// 体重保存時に返信に使う外部ビュー
+export interface WeightSavedView {
+    // 返信用の整形済みメッセージ
+    weight: number
+    bmi: number
+    advice: string
 }

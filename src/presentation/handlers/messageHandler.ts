@@ -92,7 +92,13 @@ async function handleMealPost(replyToken: string, userId: string, message: strin
         console.log(`[Meal] Processing: ${message}`)
         const result = await mealAdviceService.recordMeal(userId, message, imageBase64)
         console.log(`[Meal] Service returned:`, result)
-        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
+
+        // 改行を適切に挿入して読みやすくする
+        const formattedMessage = result.advice
+            .replace(/📅 直近24時間のサマリ:/g, "\n📅 直近24時間のサマリ:")
+            .replace(/📊 スコア:/g, "\n📊 スコア:")
+
+        await lineClient.replyMessage(replyToken, { type: "text", text: formattedMessage })
         console.log(`[Meal] Reply sent successfully`)
     } catch (error) {
         console.error("[Meal] Error:", error)
@@ -113,12 +119,11 @@ async function handleExercisePost(replyToken: string, userId: string, message: s
         const result = await exerciseService.recordExercise(userId, message)
         console.log(`[Exercise] Service returned:`, result)
 
-        // 成功メッセージを返信（外部スキーマからのメッセージを使用）
-        console.log(`[Exercise] Sending reply: ${result.message}`)
+        // 成功メッセージを返信（外部スキーマからのアドバイスを使用）
+        console.log(`[Exercise] Sending reply: ${result.advice}`)
         await lineClient.replyMessage(replyToken, {
             type: "text",
-
-            text: result.message
+            text: result.advice
         })
         console.log(`[Exercise] Reply sent successfully`)
     } catch (error) {
@@ -137,7 +142,7 @@ async function handleWeightPost(replyToken: string, userId: string, message: str
         console.log(`[Weight] Processing: ${message}`)
         const result = await weightAdviceService.recordWeight(userId, message)
         console.log(`[Weight] Service returned:`, result)
-        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.advice })
         console.log(`[Weight] Reply sent successfully`)
     } catch (error) {
         console.error("[Weight] Error:", error)
