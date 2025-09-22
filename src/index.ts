@@ -10,6 +10,7 @@ const server = Bun.serve({
     port: env.server.port,
     async fetch(req) {
         const url = new URL(req.url)
+        // 画像の外部ホスティング(imgBB)へ切替済みのため、/images配信は不要
         if (req.method === "POST" && url.pathname === "/webhook") {
             return lineWebhookController(req)
         }

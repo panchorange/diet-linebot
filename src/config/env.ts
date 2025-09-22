@@ -13,6 +13,9 @@ export const env = {
     gemini: {
         apiKey: requireEnv("GEMINI_API_KEY")
     },
+    imageHost: {
+        imgbbApiKey: process.env.IMGBB_API_KEY ?? null
+    },
     server: {
         port: Number(process.env.PORT ?? 3000)
     }

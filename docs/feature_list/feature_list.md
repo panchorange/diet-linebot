@@ -48,9 +48,14 @@
 
 ## 5. 週次レポート
 - 説明: 1週間の運動、食事、体重の記録に対するアドバイスを返す。
+- 出力内容
+    - アドバイスの文章
+    - 体重の推移（開始してから送信日まで)のグラフ。1週間の記録回数(3/7日)も載せる。
+- レポート送信タイミング
+    - 日曜(JST)の20:00
 - ブランチ名: `feature/weeklyReport` ✅ 実装中（運動のみ対応済み）
 - シーケンス図: `docs/sequence/weekly-report.mmd`
-- 関連ファイル: `src/presentation/scheduler/weeklyReportScheduler.ts`, `src/domain/services/exerciseWeeklyReportService.ts`
+- 関連ファイル: `src/presentation/scheduler/weeklyReportScheduler.ts`, `src/domain/services/weeklyReportService.ts`
 
 ## 6. 通知・リマインダー
 - 説明: 食事/体重のリマインド、励ましメッセージ。

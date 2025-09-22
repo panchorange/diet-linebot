@@ -6,6 +6,7 @@ import {
     exerciseService,
     mealAdviceService,
     userService,
+    weeklyReportService,
     weightAdviceService
 } from "../../presentation/wiring/serviceLocator"
 
@@ -79,6 +80,12 @@ export async function messageHandler(event: WebhookEvent) {
         await handleMealPost(event.replyToken, user.id, userMessage, imageBase64)
         return
     }
+    // 🆕 週次レポートの判定
+    if (userMessage.startsWith("週次レポート")) {
+        console.log(`[MessageHandler] Weekly report message detected`)
+        await handleWeeklyReport(event.replyToken, user.id, userMessage)
+        return
+    }
 
     // 既存のhelloメッセージ処理
     console.log(`[MessageHandler] Default hello message for: ${user.name}`)
@@ -93,12 +100,8 @@ async function handleMealPost(replyToken: string, userId: string, message: strin
         const result = await mealAdviceService.recordMeal(userId, message, imageBase64)
         console.log(`[Meal] Service returned:`, result)
 
-        // 改行を適切に挿入して読みやすくする
-        const formattedMessage = result.advice
-            .replace(/📅 直近24時間のサマリ:/g, "\n📅 直近24時間のサマリ:")
-            .replace(/📊 スコア:/g, "\n📊 スコア:")
-
-        await lineClient.replyMessage(replyToken, { type: "text", text: formattedMessage })
+        // 返信はサービスが整形した message をそのまま使用
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
         console.log(`[Meal] Reply sent successfully`)
     } catch (error) {
         console.error("[Meal] Error:", error)
@@ -149,6 +152,58 @@ async function handleWeightPost(replyToken: string, userId: string, message: str
         await lineClient.replyMessage(replyToken, {
             type: "text",
             text: "申し訳ございません。体重記録の保存に失敗しました。もう一度お試しください。"
+        })
+    }
+}
+
+//  週次レポートの判定
+async function handleWeeklyReport(replyToken: string, userId: string, message: string) {
+    try {
+        console.log(`[WeeklyReport] Processing: ${message}`)
+        const result = await weeklyReportService.generateWeeklyReport(userId)
+        console.log(`[WeeklyReport] Service returned:`, result)
+
+        // サマリ部分を構築
+        const summary = [
+            `📊 ${result.userName}さんの週次レポート`,
+            `📅 期間: ${new Date(result.startDate).toLocaleDateString()} - ${new Date(result.endDate).toLocaleDateString()}`,
+            "",
+            "⚖️ 体重サマリ:",
+            `📈 前週からの変化: ${result.weightSummary.weightChangeFromLastWeek >= 0 ? "+" : ""}${result.weightSummary.weightChangeFromLastWeek.toFixed(1)}kg`,
+            `📝 記録日数: ${result.weightSummary.cntRecordsThisWeek}/7日`,
+            "",
+            "🍽️ 食事サマリ:",
+            `🔥 総摂取カロリー: ${result.mealSummary.totalCalories}kcal`,
+            `📊 1日平均: ${result.mealSummary.avgCalories}kcal`,
+            `🥩 平均たんぱく質: ${result.mealSummary.avgProtein}g`,
+            `📝 記録回数: ${result.mealSummary.cntRecordDaysThisWeek}/21回(1日3食×7日)`,
+            "",
+            "🏃‍♀️ 運動サマリ:",
+            `⏱️ 総運動時間: ${result.exerciseSummary.totalDuration}分`,
+            `🔥 総消費カロリー: ${result.exerciseSummary.totalCalories}kcal`,
+            `💪 運動回数: ${result.exerciseSummary.cntExercises}回`,
+            `🏅 よくやった運動: ${result.exerciseSummary.modeExercise || "なし"}`,
+            ""
+        ].join("\n")
+
+        const messages: Array<{ type: "text" | "image"; [k: string]: unknown }> = []
+        if (result.image?.url) {
+            messages.push({
+                type: "image",
+                originalContentUrl: result.image.url,
+                previewImageUrl: result.image.previewUrl ?? result.image.url
+            })
+        }
+        messages.push({ type: "text", text: summary })
+        messages.push({ type: "text", text: result.message })
+
+        await lineClient.replyMessage(replyToken, messages as any)
+        console.log(`[WeeklyReport] Reply sent successfully`)
+    } catch (error) {
+        console.error("[WeeklyReport] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "申し訳ございません。週次レポートの生成に失敗しました。もう一度お試しください。"
         })
     }
 }
