@@ -173,6 +173,26 @@ export class MealAdviceService {
         return {
             message,
             advice,
+            isMeal,
+            mealType,
+            items: normalizedItems.map((it) => ({
+                mealId: it.mealId,
+                name: it.mealName || (it.mealId != null ? idToMaster.get(it.mealId)?.name : undefined) || null,
+                amountGrams: Math.round(Number(it.amountGrams))
+            })),
+            totals: {
+                calories: Math.round(totals.calories),
+                protein: Math.round(totals.protein),
+                fat: Math.round(totals.fat),
+                carbohydrate: Math.round(totals.carbohydrate)
+            },
+            dailySummary: {
+                totalCalories: Math.round(totals24h.calories),
+                mealCount,
+                avgProtein: Math.round(avgProtein),
+                avgFat: Math.round(avgFat),
+                avgCarbohydrate: Math.round(avgCarbohydrate)
+            },
             mealTypeLabel: mealType ? typeLabel : null,
             score: Number.isFinite(parsedScore) ? Math.round(parsedScore) : null
         }

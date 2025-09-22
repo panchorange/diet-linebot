@@ -4,10 +4,11 @@ import { exerciseService } from "../../domain/services/exerciseAdvice"
 import { exerciseWeeklyReportService } from "../../domain/services/exerciseWeeklyReportService"
 import { mealAdviceService } from "../../domain/services/mealAdvice"
 import { UserService } from "../../domain/services/userService"
+import { weeklyReportService } from "../../domain/services/weeklyReportService"
 import { weightAdviceService } from "../../domain/services/weightAdvice"
 import { PrismaUserRepository } from "../../infrastructure/prisma/repositories/PrismaUserRepository"
 
 const userRepository = new PrismaUserRepository()
 export const userService = new UserService(userRepository)
 
-export { exerciseService, exerciseWeeklyReportService, weightAdviceService, mealAdviceService }
+export { exerciseService, exerciseWeeklyReportService, weightAdviceService, mealAdviceService, weeklyReportService }
