@@ -1,6 +1,7 @@
 // 役割: Bun サーバのエントリポイント。/webhook を presentation 層に委譲
 import { env } from "./config/env"
 import { lineWebhookController } from "./presentation/controllers/lineWebhookController"
+import { startWeeklyReportCron } from "./presentation/scheduler/weeklyReportCron"
 
 // import { startExerciseWeeklyReportScheduler } from "./presentation/scheduler/weeklyReportScheduler"
 
@@ -15,22 +16,6 @@ const server = Bun.serve({
             return lineWebhookController(req)
         }
         // 週次レポートは一旦無効化(TODO: 後で有効化)
-        // if (req.method === "GET" && url.pathname === "/reports/exercise/weekly") {
-        //     const userId = url.searchParams.get("userId")
-        //     if (!userId) {
-        //         return new Response("Missing userId", { status: 400 })
-        //     }
-        //     try {
-        //         const report = await exerciseWeeklyReportService.generateWeeklyReport(userId)
-        //         return new Response(JSON.stringify(report), {
-        //             status: 200,
-        //             headers: { "content-type": "application/json" }
-        //         })
-        //     } catch (e) {
-        //         console.error(e)
-        //         return new Response("failed", { status: 500 })
-        //     }
-        // }
         return new Response("surver is running")
     }
 })
@@ -39,3 +24,6 @@ const server = Bun.serve({
 // startExerciseWeeklyReportScheduler(60_000)
 
 console.log(`🚀 Server listening on http://localhost:${server.port}`)
+
+// 週次レポートのCRONを起動（JST: 月曜06:00、日曜20:00）
+startWeeklyReportCron()

@@ -1,7 +1,7 @@
 // 役割: LINE メッセージイベントのハンドリング（入力整形→ドメインサービス呼び出し→返信）
 import type { TextEventMessage, WebhookEvent } from "@line/bot-sdk"
 import { lineClient } from "../../config/lineClient"
-import { buildHelloMessage } from "../../infrastructure/line/lineMessageBuilder"
+import { buildHelloMessage, buildWeeklyReportMessages } from "../../infrastructure/line/lineMessageBuilder"
 import {
     exerciseService,
     mealAdviceService,
@@ -162,42 +162,8 @@ async function handleWeeklyReport(replyToken: string, userId: string, message: s
         console.log(`[WeeklyReport] Processing: ${message}`)
         const result = await weeklyReportService.generateWeeklyReport(userId)
         console.log(`[WeeklyReport] Service returned:`, result)
-
-        // サマリ部分を構築
-        const summary = [
-            `📊 ${result.userName}さんの週次レポート`,
-            `📅 期間: ${new Date(result.startDate).toLocaleDateString()} - ${new Date(result.endDate).toLocaleDateString()}`,
-            "",
-            "⚖️ 体重サマリ:",
-            `📈 前週からの変化: ${result.weightSummary.weightChangeFromLastWeek >= 0 ? "+" : ""}${result.weightSummary.weightChangeFromLastWeek.toFixed(1)}kg`,
-            `📝 記録日数: ${result.weightSummary.cntRecordsThisWeek}/7日`,
-            "",
-            "🍽️ 食事サマリ:",
-            `🔥 総摂取カロリー: ${result.mealSummary.totalCalories}kcal`,
-            `📊 1日平均: ${result.mealSummary.avgCalories}kcal`,
-            `🥩 平均たんぱく質: ${result.mealSummary.avgProtein}g`,
-            `📝 記録回数: ${result.mealSummary.cntRecordDaysThisWeek}/21回(1日3食×7日)`,
-            "",
-            "🏃‍♀️ 運動サマリ:",
-            `⏱️ 総運動時間: ${result.exerciseSummary.totalDuration}分`,
-            `🔥 総消費カロリー: ${result.exerciseSummary.totalCalories}kcal`,
-            `💪 運動回数: ${result.exerciseSummary.cntExercises}回`,
-            `🏅 よくやった運動: ${result.exerciseSummary.modeExercise || "なし"}`,
-            ""
-        ].join("\n")
-
-        const messages: Array<{ type: "text" | "image"; [k: string]: unknown }> = []
-        if (result.image?.url) {
-            messages.push({
-                type: "image",
-                originalContentUrl: result.image.url,
-                previewImageUrl: result.image.previewUrl ?? result.image.url
-            })
-        }
-        messages.push({ type: "text", text: summary })
-        messages.push({ type: "text", text: result.message })
-
-        await lineClient.replyMessage(replyToken, messages as any)
+        const messages = buildWeeklyReportMessages(result)
+        await lineClient.replyMessage(replyToken, messages)
         console.log(`[WeeklyReport] Reply sent successfully`)
     } catch (error) {
         console.error("[WeeklyReport] Error:", error)
