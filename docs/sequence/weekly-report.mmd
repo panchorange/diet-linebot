@@ -9,7 +9,7 @@ sequenceDiagram
     participant LINE as LINE Platform
     actor User as ユーザー
 
-    Note over CRON: 毎週 月曜朝6:00 / 日曜20:00（JST）に起動
+    Note over CRON: 毎週 日曜20:00（JST）に起動　または 週次レポートとユーザーが投稿
 
     CRON->>DB: findMany users(id, lineUserId)
     DB-->>CRON: users[]
