@@ -22,13 +22,8 @@ async function runWeeklyReportForAllUsers(trigger: string) {
     }
 }
 
-// 毎週月曜06:00と日曜20:00に実行。週次レポートのCRON
+// 毎週日曜20:00に実行。週次レポートのCRON
 export function startWeeklyReportCron() {
-    // 月曜 06:00 JST
-    cron.schedule("0 6 * * 1", () => runWeeklyReportForAllUsers("Monday-06:00"), {
-        timezone: "Asia/Tokyo"
-    })
-
     // 日曜 20:00 JST
     cron.schedule("0 20 * * 0", () => runWeeklyReportForAllUsers("Sunday-20:00"), {
         timezone: "Asia/Tokyo"
