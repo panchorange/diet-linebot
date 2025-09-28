@@ -213,6 +213,7 @@ node_modules/
 .env
 .env.local
 .env.*
+.env.cloudsql_proxy
 !.env.example
 !.env.sample
 

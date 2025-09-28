@@ -7,7 +7,7 @@
 | ファイル名 | パス | 目的 |
 |---|---|---|
 | feature_list.md | `docs/feature_list/feature_list.md` | 実装対象機能の一覧（計画含む）。各機能から図や実装へ辿る起点。 |
-| requirements.md | `docs/requirements.md` | 機能/非機能要件、前提、制約、技術スタック。期待仕様の基準。 |
+| requirements_definition.md | `docs/requirements_definition/requirements_definition.md` | 機能/非機能要件、前提、制約、技術スタック。期待仕様の基準。 |
 | system_overview.mmd | `docs/system_overview.mmd` | システム全体の俯瞰（ユーザー/LINE/アプリ/DB/AI/スケジューラの関係）。 |
 | architecture.svg | `docs/architecture.svg` | レイヤ構造（Presentation→Domain→Infrastructure）と依存方向の可視化。 |
 | database/ERD.md | `docs/database/ERD.md` | データモデル（Mermaid ERD）。テーブル/列挙/リレーションの把握。 |
@@ -18,10 +18,10 @@
 
 ### ドキュメント間の関係性（インプット → アウトプット）
 
-- requirements.md → feature_list.md  
+- requirements_definition.md → feature_list.md  
   - 要件を基に「何を作るか」を列挙・優先づけ。
 
-- requirements.md → system_overview.mmd / architecture.svg  
+- requirements_definition.md → system_overview.mmd / architecture.svg  
   - 期待する振る舞い・非機能を踏まえ、全体構成と依存関係を設計。
 
 - feature_list.md → sequence/message-post-sequence.mmd・sequence/weekly-report.mmd  
@@ -36,8 +36,8 @@
 
 ### 生成・更新の推奨フロー
 
-1. requirements.md を更新（要求変更の取り込み）
-2. features.md を更新（対象機能/優先度の見直し）
+1. requirements_definition.md を更新（要求変更の取り込み）
+2. feature_list.md を更新（対象機能/優先度の見直し）
 3. system_overview.mmd / architecture.svg を更新（構成影響を反映）
 4. database/ERD.md を更新（データ構造の反映。必要に応じて `prisma/schema.prisma` と整合）
 5. sequence/*.mmd を更新（処理フローの確定）
@@ -96,6 +96,145 @@
   - `prisma/seeds/exerciseMaster.ts`
   - `prisma/seeds/mealMaster.ts`
   - `prisma/schema.prisma`
+
+---
+
+### GCP へのイメージビルド/プッシュ/デプロイ（Cloud Build + Artifact Registry + Cloud Run 推奨）
+
+Cloud Build を使うとローカルの CPU アーキテクチャ差（arm64/amd64）を意識せずにビルドできます。イメージ内に `.env.local` は含めず、Secrets から注入します。
+
+前提
+- `gcloud`/Docker が導入済み
+- GCP プロジェクト作成済み
+- Artifact Registry（Docker）を使うリージョンを決める（例: `asia-northeast1`）
+
+1) プロジェクト/リージョン設定と API 有効化
+```bash
+PROJECT_ID=your-gcp-project-id
+REGION=asia-northeast1
+REPOSITORY=diet-linebot
+SERVICE=diet-linebot
+
+gcloud config set project ${PROJECT_ID}
+gcloud services enable artifactregistry.googleapis.com run.googleapis.com
+```
+
+2) Artifact Registry リポジトリ作成（未作成なら）
+```bash
+gcloud artifacts repositories create ${REPOSITORY} \
+  --repository-format=docker \
+  --location=${REGION}
+```
+
+3) Cloud Build でビルド & プッシュ
+```bash
+gcloud builds submit --tag asia-northeast1-docker.pkg.dev/diet-linebot-467114/diet-linebot/diet-linebot:0.0.1 .
+```
+
+
+4) Cloud Run へデプロイ（Secrets/Cloud SQL 連携の例）
+- Secrets は事前に Secret Manager へ登録（例: `DATABASE_URL`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `GEMINI_API_KEY`, `IMGBB_API_KEY`）。
+- Cloud SQL を使う場合、インスタンス接続名を指定（例: `${PROJECT_ID}:${REGION}:diet-linebot-pg`）。
+
+```bash
+INSTANCE=${PROJECT_ID}:${REGION}:diet-linebot-pg
+
+gcloud run deploy ${SERVICE} \
+  --image "${IMAGE}" \
+  --region "${REGION}" \
+  --allow-unauthenticated \
+  --add-cloudsql-instances "${INSTANCE}" \
+  --set-secrets=DATABASE_URL=DATABASE_URL:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest,LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest \
+  --set-secrets=IMGBB_API_KEY=IMGBB_API_KEY:latest \
+  --concurrency=10 \
+  --memory=512Mi \
+  --cpu=1
+```
+
+メモ
+- アプリは `process.env.PORT` を読むため、Cloud Run から渡される `$PORT` で自動的に起動します（Dockerfile は `EXPOSE 8080` のままでOK）。
+- Prisma の接続数は DSN のクエリ `connection_limit=` で抑制推奨。
+- Dockerfile は本番で `.env.local` をコピーしない構成に修正済み。
+
+5) Cloud SQL の DSN（例）
+- Unix ソケット経由: `host=/cloudsql/${INSTANCE}`
+```bash
+DATABASE_URL=""
+```
+↑のURLに使うpsqlのPWは、以下のコマンドでencodeしたものを入れる。
+
+```bash
+node -e 'console.log(encodeURIComponent(process.argv[1]))' '${psqlで設定したPW}'
+```
+
+
+この文字列を Secret `DATABASE_URL` に保存しておきます。
+
+6) 任意: ローカルでのビルド/起動（Apple Silicon 等）
+- できるだけ Cloud Build 推奨。ローカルで直接ビルドする場合は `buildx` を使用。
+```bash
+# 例: arm64 でビルド
+docker buildx build --platform linux/arm64 -t ${SERVICE}:dev .
+
+# 起動（必要な環境変数は --env で渡すか --env-file を使用）
+docker run --rm -p 8080:8080 ${SERVICE}:dev
+```
+
+- 作業内容: `Dockerfile` を本番用に簡素化（`.env.local` のコピー削除）。`docs/README.md` の GCP デプロイ章を Cloud Build/Artifact Registry/Cloud Run 前提で書き直しました。
+- 次のアクション: 上記内容で編集してデプロイを進めてください。Cloud Scheduler/Job 化も必要なら続けて実装案を出します。
+
+## Cloud SQL 接続・マイグレーション手順
+
+- **環境ファイルの使い分け**
+  - `.env`（Cloud Run 用）
+    ```env
+    PSQL_USER=XXXX
+    PSQL_PW=<URL_ENCODED_PASSWORD> 
+    PSQL_DB=diet_linebot
+    CLOUDSQL_INSTANCE=XXXX
+
+    DATABASE_URL=postgresql://${PSQL_USER}:${PSQL_PW}@/${PSQL_DB}?host=/cloudsql/${CLOUDSQL_INSTANCE}&schema=public
+    ```
+  - `.env.local`（ローカル／Cloud SQL Proxy 経由）
+    ```env
+    PSQL_USER=postgres
+    PSQL_PW=<URL_ENCODED_PASSWORD>
+    PSQL_DB=diet_linebot
+    PSQL_HOST=127.0.0.1
+    PSQL_PORT=5433
+
+    DATABASE_URL=postgresql://${PSQL_USER}:${PSQL_PW}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}?schema=public
+    ```
+    - `PSQL_PORT` は Proxy 起動時のポートに合わせる。
+
+- **パスワードの URL エンコード**
+  ```bash
+  bun eval 'console.log(encodeURIComponent("<PLAIN_PASSWORD_FROM_DEV>"))'
+  ```
+  - `<PLAIN_PASSWORD_FROM_DEV>` には開発者から共有された生パスワードを入れる。URL エンコード後の値を `PSQL_PW` に設定。
+
+- **Cloud SQL Proxy の起動**
+  ```bash
+  cloud-sql-proxy --port 5433 diet-linebot-467114:asia-northeast1:diet-linebot-pg
+  ```
+  - プロキシは別ターミナルで起動したままにしておく。
+
+- **Prisma マイグレーション / シード**
+  ```bash
+  bunx dotenv --dotenv-expand -e .env -- bun prisma migrate deploy
+  bunx dotenv --dotenv-expand -e .env -- bun prisma db seed
+  ```
+  - Cloud Run 上で同じコマンドを実行する場合は `.env` を指定。
+
+- **DBeaver からの接続確認**
+  1. Cloud SQL Proxy を起動した状態で DBeaver → 新規接続 → PostgreSQL。
+  2. Host `127.0.0.1`、Port `5433`、Database `diet_linebot`、Username `postgres` を入力。
+  3. Password は開発者から共有された生パスワード（エンコード前）を入力。
+  4. `Test Connection` → `Finish`。`public` → `Tables` を展開してテーブルを確認。
+
+- **Cloud SQL Studio での確認**
+  - Cloud SQL コンソール → 対象インスタンス → Cloud SQL Studio。
+  - Database に `diet_linebot` を指定して接続し、`public` → `Tables` で一覧を確認。
 
 ### 備考
 

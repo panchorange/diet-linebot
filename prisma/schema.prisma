@@ -2,11 +2,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator erd {
-  provider = "prisma-erd-generator"
-  output   = "../docs/database/ERD.svg"  // .svg/.png/.pdf/.md が選べる
-  theme    = "forest"                     // 任意: default/forest/dark/neutral
-}
+// ERD生成(docker buildする時にはコメントアウトする)
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../docs/database/ERD.svg"  // .svg/.png/.pdf/.md が選べる
+//   theme    = "forest"                     // 任意: default/forest/dark/neutral
+// }
 
 datasource db {
   provider = "postgresql"
