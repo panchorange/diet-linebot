@@ -3,7 +3,21 @@ import type { ImageMessage, TextMessage } from "@line/bot-sdk"
 import type { WeeklyReportView } from "../../domain/models/ExternalViews"
 
 export function buildHelloMessage(name: string): TextMessage {
-    return { type: "text", text: `こんにちは、${name}さん！` }
+    const lines = [
+        `こんにちは、${name}さん！habitoriです🕊️✨`,
+        "いつでも気軽に記録して、あなたの頑張りを可視化するお手伝いをします💪",
+        "",
+        "🎯 使い方ガイド",
+        "⚖️ 体重 → 例: 体重 62.3",
+        "🍽️ 食事 → 例: 食事 昼食 サラダとチキン（📸写真だけ送ってもOK👍）",
+        "🏃 運動 → 例: 運動 ランニング 30分",
+        "📅 週次レポート → 例: 週次レポート",
+        "",
+        "記録するとアドバイスや週次レポートが届きます📬",
+        "一緒に楽しく続けていきましょうね😊"
+    ]
+
+    return { type: "text", text: lines.join("\n") }
 }
 
 export function buildWeeklyReportMessages(result: WeeklyReportView): Array<TextMessage | ImageMessage> {

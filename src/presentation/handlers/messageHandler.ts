@@ -87,7 +87,7 @@ export async function messageHandler(event: WebhookEvent) {
         return
     }
 
-    // 既存のhelloメッセージ処理
+    // いずれにも当てはまらない場合は、挨拶と使い方を載せたメッセージを返信
     console.log(`[MessageHandler] Default hello message for: ${user.name}`)
     const reply = buildHelloMessage(user.name)
     await lineClient.replyMessage(event.replyToken, reply)
