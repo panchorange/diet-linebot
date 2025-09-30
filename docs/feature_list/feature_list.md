@@ -45,8 +45,17 @@
     - `src/infrastructure/prisma/client.ts`
     - `src/infrastructure/line/lineMessageBuilder.ts`
 
+## 5. プロフィール記録
+- 説明: ユーザーが身長・年齢・性別などの属性を投稿し、`users` テーブルへ保存・更新する。
+- ブランチ名: `feature/profile-registration`
+- シーケンス図: `docs/sequence/profile-update-sequence.mmd`
+- 関連ファイル:
+    - `src/presentation/controllers/lineWebhookController.ts`
+    - `src/presentation/handlers/messageHandler.ts`
+    - `src/domain/services/userService.ts`
+    - `src/infrastructure/prisma/repositories/PrismaUserRepository.ts`
 
-## 5. 週次レポート
+## 6. 週次レポート
 - 説明: 1週間の運動、食事、体重の記録に対するアドバイスを返す。
 - 出力内容
     - アドバイスの文章
@@ -61,13 +70,13 @@
     - `src/infrastructure/line/lineMessageBuilder.ts`
     - `src/domain/services/weeklyReportService.ts`
 
-## 6. 通知・リマインダー
+## 7. 通知・リマインダー
 - 説明: 食事/体重のリマインド、励ましメッセージ。
 - ブランチ名: `feature/notification-reminder`
 - シーケンス図: 準備中
 - 関連ファイル: 準備中
 
-## 7. データ分析・レポート拡張
+## 8. データ分析・レポート拡張
 - 説明: カロリー収支/傾向分析の追加。週次レポートの食事・体重対応。
 - ブランチ名: `feature/analyticsEnhancement`
 - シーケンス図: `docs/sequence/weekly-report.mmd`

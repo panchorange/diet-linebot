@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor U as ユーザー
+    participant LINE as LINE Platform
+    participant C as Controller(/webhook)
+    participant H as MessageHandler
+    participant US as UserService
+    participant REPO as PrismaUserRepository
+    participant DB as PostgreSQL(users)
+    participant LC as LINE Client
+
+    U->>LINE: 「プロフィール 身長 170」などを送信
+    LINE->>C: POST /webhook (events)
+    C->>H: messageHandler(event)
+
+    H->>US: registerOrUpdateProfile(lineUserId, payload)
+    US->>REPO: upsertProfile(lineUserId, parsedProfile)
+    REPO->>DB: INSERT/UPDATE users
+    DB-->>REPO: 保存結果
+    REPO-->>US: 更新後のユーザー
+    US-->>H: 保存結果
+
+    H->>LC: replyMessage(replyToken, 成功/エラーメッセージ)
+    LC-->>LINE: reply
+    LINE-->>U: 返信表示

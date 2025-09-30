@@ -5,6 +5,7 @@ import { buildHelloMessage, buildWeeklyReportMessages } from "../../infrastructu
 import {
     exerciseService,
     mealAdviceService,
+    profileService,
     userService,
     weeklyReportService,
     weightAdviceService
@@ -80,6 +81,13 @@ export async function messageHandler(event: WebhookEvent) {
         await handleMealPost(event.replyToken, user.id, userMessage, imageBase64)
         return
     }
+    // 🆕 プロフィール更新の判定
+    if (userMessage.startsWith("プロフィール")) {
+        console.log(`[MessageHandler] Profile update detected: ${userMessage}`)
+        await handleProfileUpdate(event.replyToken, lineUserId, userMessage)
+        return
+    }
+
     // 🆕 週次レポートの判定
     if (userMessage.startsWith("週次レポート")) {
         console.log(`[MessageHandler] Weekly report message detected`)
@@ -170,6 +178,29 @@ async function handleWeeklyReport(replyToken: string, userId: string, message: s
         await lineClient.replyMessage(replyToken, {
             type: "text",
             text: "申し訳ございません。週次レポートの生成に失敗しました。もう一度お試しください。"
+        })
+    }
+}
+
+async function handleProfileUpdate(replyToken: string, lineUserId: string, userMessage: string) {
+    try {
+        const result = await profileService.updateProfileFromText(lineUserId, userMessage)
+        if (result.user) {
+            console.log(`[Profile] Updated user profile:`, {
+                lineUserId,
+                height: result.user.height,
+                age: result.user.age,
+                gender: result.user.gender
+            })
+        } else {
+            console.log(`[Profile] LLM rejected update: ${result.message}`)
+        }
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
+    } catch (error) {
+        console.error("[Profile] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "プロフィールの更新に失敗しました。入力内容をご確認のうえ、もう一度お試しください。"
         })
     }
 }
