@@ -43,7 +43,8 @@
         "db:reset:local": "bunx dotenv --dotenv-expand -e .env.local -- bunx prisma migrate reset",
         "docs:generate": "bunx prisma generate && ./node_modules/.bin/mmdc -i docs/database/ERD.mmd -o docs/database/ERD.svg -b transparent",
         "lint": "biome check .",
-        "lint:fix": "biome check --write ."
+        "lint:fix": "biome check --write .",
+        "deploy:cloudrun": "bunx dotenv --dotenv-expand -e .env -- sh -c 'gcloud builds submit --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/diet-linebot/diet-linebot:$(git rev-parse --short HEAD) .'"
     },
     "prisma": {
         "seed": "bun prisma/seed.ts"
