@@ -119,47 +119,68 @@
 
 ### 3.1 前提
 
-- `gcloud` CLI / Docker がインストール済み
-- GCP プロジェクト、Artifact Registry、Cloud Run、Cloud SQL が準備済み
+- `gcloud` CLI がインストール済み
+- `.env` に `PROJECT_ID`, `REGION` を含む環境変数を設定済み
 - Secret Manager に `DATABASE_URL`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `GEMINI_API_KEY`, `IMGBB_API_KEY` を登録済み
 
-### 3.2 Cloud Build でビルド & プッシュ
+### 3.2 Artifact Registry へイメージを push
 
 ```bash
-PROJECT_ID=diet-linebot-467114
-REGION=asia-northeast1
-IMAGE_TAG=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/diet-linebot/diet-linebot:0.0.1
-
-gcloud config set project ${PROJECT_ID}
-gcloud services enable artifactregistry.googleapis.com run.googleapis.com
-gcloud builds submit --tag ${IMAGE_TAG} .
+bun run deploy:cloudrun
 ```
+
+このコマンドで `.env` を読み込み、Cloud Build によるビルドと Artifact Registry への push が完了します。
 
 ### 3.3 Cloud Run へデプロイ
 
-```bash
-SERVICE=diet-linebot
-INSTANCE=${PROJECT_ID}:${REGION}:diet-linebot-pg
+本プロジェクトは役割ごとに 2 つの Cloud Run リソースを使い分けています:
 
-gcloud run deploy ${SERVICE} \
-  --image ${IMAGE_TAG} \
-  --region ${REGION} \
-  --allow-unauthenticated \
-  --add-cloudsql-instances ${INSTANCE} \
-  --set-secrets=DATABASE_URL=DATABASE_URL:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest,LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,IMGBB_API_KEY=IMGBB_API_KEY:latest
-```
+- **3.3.a サービス** (`diet-linebot`): LINE Webhook を受け付ける常駐 HTTP サーバー。ユーザーからのメッセージに即座に応答。
+- **3.3.b ジョブ** (`diet-linebot-weekly-report`): 週次レポート専用バッチ。Cloud Scheduler から定期実行され、処理完了後に自動終了。
 
-- Cloud Run では `$PORT` が注入されるため、`src/index.ts` は自動で該当ポートを使用。
-- Prisma の接続数は `?connection_limit=` を利用して Cloud SQL の上限に合わせる。
+この構成により、Webhook 処理と定期バッチを独立してスケール・監視でき、ジョブ実行のタイミングを Cloud Scheduler で確実に制御できます。
 
-### 3.4 Cloud SQL 用 DSN の作成
+#### 3.3.a サービス（LINE Webhook 処理）
 
-```bash
-node -e 'console.log(encodeURIComponent(process.argv[1]))' '<PLAIN_PASSWORD>'
-```
+1. [Cloud Run コンソール](https://console.cloud.google.com/run) で「**サービス**」を選択
+2. サービス名: `diet-linebot`、コンテナイメージ: push した URL を指定
+3. **変数とシークレット** タブで Secret Manager から環境変数を注入:
+   - `DATABASE_URL`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `GEMINI_API_KEY`, `IMGBB_API_KEY`
+4. **接続** タブで Cloud SQL インスタンス (`diet-linebot-467114:asia-northeast1:diet-linebot-pg`) を追加
+5. **認証**: 未認証の呼び出しを許可（LINE からの Webhook を受信するため）
+6. 「デプロイ」をクリック
 
-- 上記で取得した値を `DATABASE_URL=postgresql://${USER}:${PW}@/${DB}?host=/cloudsql/${INSTANCE}&schema=public` に埋め込み、Secret Manager の `DATABASE_URL` として保存。
-- GUI（Cloud SQL Studio、DBeaver）で確認する場合は Cloud SQL Proxy (TCP) を利用し、`127.0.0.1:5433` 経由で接続。
+エントリポイント: `src/index.ts`（デフォルト）
+
+#### 3.3.b ジョブ（週次レポート配信）
+
+1. [Cloud Run コンソール](https://console.cloud.google.com/run) で「**ジョブ**」を選択
+2. ジョブ名: `diet-linebot-weekly-report`、コンテナイメージ: サービスと同じ URL を指定
+3. **コンテナ** タブで以下を指定:
+   - コンテナコマンド: `bun`
+   - コンテナの引数: `src/cloudrunjobs/weeklyReportJob.ts`
+4. **変数とシークレット** タブで Secret Manager から環境変数を注入（サービスと同じ）
+5. **接続** タブで Cloud SQL インスタンス（サービスと同じ）を追加
+6. **タスクの容量**: 並列処理上限を `1` に設定（重複送信防止）
+7. 「作成」をクリック
+
+エントリポイント: `src/cloudrunjobs/weeklyReportJob.ts`（全ユーザーへ週次レポートを送信して終了）
+
+#### ジョブのトリガー設定（Cloud Scheduler）
+
+1. [Cloud Scheduler コンソール](https://console.cloud.google.com/cloudscheduler) を開く
+2. 「スケジュールを作成」をクリック
+3. 以下を設定:
+   - **名前**: `weekly-report-trigger`
+   - **リージョン**: `asia-northeast1`
+   - **頻度**: `0 20 * * 0`（毎週日曜 20:00）
+   - **タイムゾーン**: `Asia/Tokyo`
+   - **ターゲットタイプ**: `Cloud Run ジョブ`
+   - **ジョブ**: `diet-linebot-weekly-report`
+   - **サービスアカウント**: Compute Engine default service account
+4. 「作成」をクリック
+
+※ 初回は手動実行でレポート送信をテストしてから Scheduler を有効化してください。
 
 ---
 

@@ -5,7 +5,7 @@ import { buildWeeklyReportMessages } from "../../infrastructure/line/lineMessage
 import { prisma } from "../../infrastructure/prisma/client"
 import { weeklyReportService } from "../../presentation/wiring/serviceLocator"
 
-async function runWeeklyReportForAllUsers(trigger: string) {
+export async function runWeeklyReportForAllUsers(trigger: string) {
     console.log(`[WeeklyReportCron] Triggered by ${trigger}`)
     const users = await prisma.user.findMany({ select: { id: true, displayName: true, lineUserId: true } })
 
