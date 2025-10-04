@@ -4,7 +4,19 @@ import { aiClient } from "../../config/aiClient"
 import { prisma } from "../../infrastructure/prisma/client"
 import type { WeeklyReportView } from "../models/ExternalViews"
 
-Chart.register(...registerables)
+const whiteBackgroundPlugin = {
+    id: "whiteBackground",
+    beforeDraw: (chart: Chart) => {
+        const { ctx, width, height } = chart
+        ctx.save()
+        ctx.globalCompositeOperation = "destination-over"
+        ctx.fillStyle = "#ffffff"
+        ctx.fillRect(0, 0, width, height)
+        ctx.restore()
+    }
+}
+
+Chart.register(...registerables, whiteBackgroundPlugin)
 
 // グローバルな背景色をデフォルトで白に設定
 Chart.defaults.backgroundColor = "#ffffff"
@@ -93,7 +105,68 @@ export class WeeklyReportService {
         return { totalDuration, totalCalories, cntExercises, cntRecordDaysThisWeek: cntExercises, modeExercise }
     }
 
-    private renderWeightChart(points: Array<{ recordedAt: Date; weight: number; bmi: number | null }>): Buffer | null {
+    private formatDateKey(date: Date): string {
+        const y = date.getFullYear()
+        const m = `${date.getMonth() + 1}`.padStart(2, "0")
+        const d = `${date.getDate()}`.padStart(2, "0")
+        return `${y}-${m}-${d}`
+    }
+
+    private buildWeeklyChartPoints(
+        start: Date,
+        end: Date,
+        weights: Array<{ recordedAt: Date; weight: number | null }>,
+        meals: Array<{ recordedAt: Date; calories: number | null }>
+    ): Array<{ dateISO: string; weight: number | null; totalCalories: number | null }> {
+        const weightMap = new Map<string, { weight: number | null; timestamp: number }>()
+        for (const w of weights) {
+            const key = this.formatDateKey(w.recordedAt)
+            const existing = weightMap.get(key)
+            const timestamp = w.recordedAt.getTime()
+            if (!existing || timestamp > existing.timestamp) {
+                weightMap.set(key, { weight: w.weight, timestamp })
+            }
+        }
+
+        const calorieMap = new Map<string, { total: number; count: number }>()
+        for (const meal of meals) {
+            if (meal.calories == null) continue
+            const key = this.formatDateKey(meal.recordedAt)
+            const entry = calorieMap.get(key) ?? { total: 0, count: 0 }
+            entry.total += Number(meal.calories)
+            entry.count += 1
+            calorieMap.set(key, entry)
+        }
+
+        const points: Array<{ dateISO: string; weight: number | null; totalCalories: number | null }> = []
+        for (
+            let current = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            current < end;
+            current.setDate(current.getDate() + 1)
+        ) {
+            const key = this.formatDateKey(current)
+            const dateISO = new Date(
+                Date.UTC(current.getFullYear(), current.getMonth(), current.getDate())
+            ).toISOString()
+            const weightEntry = weightMap.get(key)
+            const calorieEntry = calorieMap.get(key)
+            const totalCalories = calorieEntry ? Math.round(calorieEntry.total) : null
+            points.push({
+                dateISO,
+                weight: weightEntry?.weight ?? null,
+                totalCalories
+            })
+        }
+
+        const hasWeight = points.some((p) => p.weight != null)
+        const hasCalories = points.some((p) => p.totalCalories != null)
+        if (!hasWeight && !hasCalories) return []
+        return points
+    }
+
+    private renderWeightChart(
+        points: Array<{ dateISO: string; weight: number | null; totalCalories: number | null }>
+    ): Buffer | null {
         if (!points || points.length < 2) return null
         const width = 900
         const height = 500
@@ -103,9 +176,16 @@ export class WeeklyReportService {
         ctx.fillStyle = "#ffffff"
         ctx.fillRect(0, 0, width, height)
 
-        const labels = points.map((p) => p.recordedAt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" }))
-        const w = points.map((p) => p.weight)
-        const b = points.map((p) => (p.bmi == null ? null : p.bmi))
+        const labels = points.map((p) =>
+            new Date(p.dateISO).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })
+        )
+        const weightData: Array<number | null> = points.map((p) => (p.weight == null ? null : Number(p.weight)))
+        const totalCalorieData: Array<number | null> = points.map((p) =>
+            p.totalCalories == null ? null : Math.round(Number(p.totalCalories))
+        )
+        const hasWeightData = weightData.some((v) => v != null)
+        const hasCalorieData = totalCalorieData.some((v) => v != null)
+        if (!hasWeightData && !hasCalorieData) return null
         // eslint-disable-next-line no-new
         new Chart(ctx as unknown as any, {
             type: "line",
@@ -114,30 +194,30 @@ export class WeeklyReportService {
                 datasets: [
                     {
                         label: "体重(kg)",
-                        data: w,
-                        borderColor: "#3b82f6", // 明るいブルー
-                        backgroundColor: "rgba(59,130,246,0.18)",
-                        pointBackgroundColor: "#3b82f6",
+                        data: weightData,
+                        type: "line",
+                        order: 1,
+                        yAxisID: "y",
+                        borderColor: "#1d4ed8",
+                        backgroundColor: "rgba(29, 78, 216, 0.18)",
+                        pointBackgroundColor: "#1d4ed8",
                         pointBorderColor: "#ffffff",
-                        pointRadius: 6,
+                        pointRadius: 5,
                         borderWidth: 4,
                         tension: 0.25,
-                        yAxisID: "y",
-                        fill: true
+                        fill: false
                     },
                     {
-                        label: "BMI",
-                        data: b as unknown as number[],
-                        borderColor: "#f59e0b", // ポップなオレンジ
-                        backgroundColor: "rgba(245,158,11,0.12)",
-                        pointBackgroundColor: "#f59e0b",
-                        pointBorderColor: "#ffffff",
-                        pointRadius: 3,
-                        borderWidth: 3,
-                        borderDash: [6, 3],
-                        tension: 0.25,
-                        yAxisID: "y1",
-                        fill: true
+                        label: "総摂取カロリー(kcal)",
+                        data: totalCalorieData,
+                        type: "bar",
+                        order: 2,
+                        yAxisID: "yCalories",
+                        backgroundColor: "rgba(242, 142, 43, 0.55)",
+                        borderColor: "rgba(242, 142, 43, 0.9)",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        maxBarThickness: 40
                     }
                 ]
             },
@@ -151,7 +231,7 @@ export class WeeklyReportService {
                     },
                     title: {
                         display: true,
-                        text: "1週間の体重 / BMI",
+                        text: "1週間の体重 / 総摂取カロリー",
                         color: "#111827",
                         font: { size: 28, weight: "bold" }
                     }
@@ -159,32 +239,33 @@ export class WeeklyReportService {
                 scales: {
                     x: {
                         ticks: { color: "#374151", font: { size: 16 } },
-                        grid: { color: "#e5e7eb" }
+                        grid: { display: false },
+                        border: { display: false }
                     },
                     y: {
                         position: "left",
                         title: { display: true, text: "kg", color: "#374151", font: { size: 16 } },
                         ticks: { color: "#374151", font: { size: 16 } },
-                        grid: { color: "#e5e7eb" }
+                        grid: { display: false },
+                        border: { display: false }
                     },
-                    y1: {
+                    yCalories: {
                         position: "right",
-                        grid: { drawOnChartArea: false, color: "#e5e7eb" },
-                        title: { display: true, text: "BMI", color: "#374151", font: { size: 16 } },
-                        ticks: { color: "#374151", font: { size: 16 } }
+                        grid: { display: false },
+                        border: { display: false },
+                        title: { display: true, text: "総摂取カロリー(kcal)", color: "#f28e2b", font: { size: 16 } },
+                        ticks: { color: "#f28e2b", font: { size: 16 } }
                     }
                 }
             }
         })
-        // JPEGに変換してBufferで返す
-        const jpg = canvas.toBuffer("image/jpeg", { quality: 0.85 } as any)
-        return jpg
+        return canvas.toBuffer("image/png")
     }
 
-    private async uploadToImgBB(imageJpeg: Buffer): Promise<{ url: string; previewUrl: string } | null> {
+    private async uploadToImgBB(imageBuffer: Buffer): Promise<{ url: string; previewUrl: string } | null> {
         const apiKey = env.imageHost.imgbbApiKey
         if (!apiKey) return null
-        const b64 = imageJpeg.toString("base64")
+        const b64 = imageBuffer.toString("base64")
         const body = new URLSearchParams({ image: b64, expiration: String(60 * 30) }) // 30分
         const url = `https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`
         const res = await fetch(url, {
@@ -239,16 +320,17 @@ export class WeeklyReportService {
 
         console.log("[WeeklyReport] Extracted message:", message)
 
-        const jpeg = this.renderWeightChart(
-            weights.map((w) => ({ recordedAt: w.recordedAt, weight: w.weight, bmi: (w as any).bmi ?? null }))
-        )
-        const imagePair = jpeg ? await this.uploadToImgBB(jpeg) : null
+        const chartPoints = this.buildWeeklyChartPoints(start, end, weights, meals)
+        const chartBuffer = this.renderWeightChart(chartPoints)
+        const imagePair = chartBuffer ? await this.uploadToImgBB(chartBuffer) : null
 
         return {
             userName,
             startDate: start.toISOString(),
             endDate: new Date(end.getTime() - 1).toISOString(),
-            image: imagePair ? { url: imagePair.url, previewUrl: imagePair.previewUrl, alt: "1週間の体重/BMI" } : null,
+            image: imagePair
+                ? { url: imagePair.url, previewUrl: imagePair.previewUrl, alt: "1週間の体重/総摂取カロリー" }
+                : null,
             weightSummary,
             mealSummary,
             exerciseSummary,
