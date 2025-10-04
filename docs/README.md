@@ -41,6 +41,12 @@
 - 主要サービス: `userService`, `exerciseWeeklyReportService`, `exerciseService` (alias)
 - 詳細な仕様は各ファイル先頭コメントと型定義を参照
 
+### 1.4 アーキテクチャ概要（3層）
+
+- **ディレクトリ構成**: `src/presentation/`（エンドポイント・LINE連携）、`src/domain/`（ユースケース・モデル）、`src/infrastructure/`（Prisma や外部API）で三層アーキテクチャを維持。
+- **DB三層スキーマ**: 概念スキーマは `src/domain/models/ConceptualSchema.ts`、論理スキーマは `docs/database/ERD.md`、物理スキーマは `prisma/schema.prisma`（および `prisma/migrations/`）。それぞれを同期させる。
+- **外部公開用ビュー**: `src/domain/models/ExternalViews.ts` が Presentation 層向けの出力フォーマットを定義し、三層間の境界を明示している。
+
 ---
 
 ## 2. データベース
