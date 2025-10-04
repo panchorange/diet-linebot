@@ -1,14 +1,21 @@
 // 役割: LINE メッセージイベントのハンドリング（入力整形→ドメインサービス呼び出し→返信）
-import type { WebhookEvent } from "@line/bot-sdk"
+import type { TextEventMessage, WebhookEvent } from "@line/bot-sdk"
 import { lineClient } from "../../config/lineClient"
-import { buildHelloMessage } from "../../infrastructure/line/lineMessageBuilder"
-import { exerciseService, userService } from "../../presentation/wiring/serviceLocator"
+import { buildHelloMessage, buildWeeklyReportMessages } from "../../infrastructure/line/lineMessageBuilder"
+import {
+    exerciseService,
+    mealAdviceService,
+    profileService,
+    userService,
+    weeklyReportService,
+    weightAdviceService
+} from "../../presentation/wiring/serviceLocator"
 
 export async function messageHandler(event: WebhookEvent) {
     console.log("[MessageHandler] Starting message processing...")
 
-    if (event.type !== "message" || event.message.type !== "text") {
-        console.log("[MessageHandler] Not a text message, skipping")
+    if (event.type !== "message") {
+        console.log("[MessageHandler] Not a message event, skipping")
         return
     }
     // グループとユーザーの両方からのメッセージを処理
@@ -25,7 +32,9 @@ export async function messageHandler(event: WebhookEvent) {
     }
 
     const lineUserId = userId
-    const userMessage = event.message.text
+    const isText = event.message.type === "text"
+    const isImage = event.message.type === "image"
+    const userMessage = isText ? (event.message as TextEventMessage).text : ""
     console.log(
         `[MessageHandler] Processing message: "${userMessage}" from user: ${lineUserId} (source: ${event.source.type})`
     )
@@ -44,11 +53,71 @@ export async function messageHandler(event: WebhookEvent) {
         return
     }
 
-    // 既存のhelloメッセージ処理
+    // 🆕 体重投稿の判定
+    if (userMessage.startsWith("体重")) {
+        console.log(`[MessageHandler] Weight message detected: "${userMessage}"`)
+        await handleWeightPost(event.replyToken, user.id, userMessage)
+        return
+    }
+
+    // 🆕 食事投稿の判定（テキストが「食事」で始まる、または画像）
+    if ((isText && userMessage.startsWith("食事")) || isImage) {
+        console.log(`[MessageHandler] Meal message/image detected`)
+        let imageBase64: string | undefined
+        if (isImage) {
+            try {
+                const messageId = (event.message as { type: "image"; id: string }).id
+                const stream = await lineClient.getMessageContent(messageId)
+                const chunks: Buffer[] = []
+                imageBase64 = await new Promise<string>((resolve, reject) => {
+                    stream.on("data", (chunk: Buffer) => chunks.push(chunk))
+                    stream.on("end", () => resolve(Buffer.concat(chunks).toString("base64")))
+                    stream.on("error", reject)
+                })
+            } catch (e) {
+                console.error("[MessageHandler] Failed to download image content:", e)
+            }
+        }
+        await handleMealPost(event.replyToken, user.id, userMessage, imageBase64)
+        return
+    }
+    // 🆕 プロフィール更新の判定
+    if (userMessage.startsWith("プロフィール")) {
+        console.log(`[MessageHandler] Profile update detected: ${userMessage}`)
+        await handleProfileUpdate(event.replyToken, lineUserId, userMessage)
+        return
+    }
+
+    // 🆕 週次レポートの判定
+    if (userMessage.startsWith("週次レポート")) {
+        console.log(`[MessageHandler] Weekly report message detected`)
+        await handleWeeklyReport(event.replyToken, user.id, userMessage)
+        return
+    }
+
+    // いずれにも当てはまらない場合は、挨拶と使い方を載せたメッセージを返信
     console.log(`[MessageHandler] Default hello message for: ${user.name}`)
     const reply = buildHelloMessage(user.name)
     await lineClient.replyMessage(event.replyToken, reply)
     console.log(`[MessageHandler] Hello message sent`)
+}
+//  食事投稿処理
+async function handleMealPost(replyToken: string, userId: string, message: string, imageBase64?: string) {
+    try {
+        console.log(`[Meal] Processing: ${message}`)
+        const result = await mealAdviceService.recordMeal(userId, message, imageBase64)
+        console.log(`[Meal] Service returned:`, result)
+
+        // 返信はサービスが整形した message をそのまま使用
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
+        console.log(`[Meal] Reply sent successfully`)
+    } catch (error) {
+        console.error("[Meal] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "申し訳ございません。食事記録の保存に失敗しました。もう一度お試しください。"
+        })
+    }
 }
 
 //  運動投稿処理
@@ -61,11 +130,11 @@ async function handleExercisePost(replyToken: string, userId: string, message: s
         const result = await exerciseService.recordExercise(userId, message)
         console.log(`[Exercise] Service returned:`, result)
 
-        // 成功メッセージを返信（外部スキーマからのメッセージを使用）
-        console.log(`[Exercise] Sending reply: ${result.message}`)
+        // 成功メッセージを返信（外部スキーマからのアドバイスを使用）
+        console.log(`[Exercise] Sending reply: ${result.advice}`)
         await lineClient.replyMessage(replyToken, {
             type: "text",
-            text: result.message
+            text: result.advice
         })
         console.log(`[Exercise] Reply sent successfully`)
     } catch (error) {
@@ -74,6 +143,64 @@ async function handleExercisePost(replyToken: string, userId: string, message: s
         await lineClient.replyMessage(replyToken, {
             type: "text",
             text: "申し訳ございません。運動記録の保存に失敗しました。もう一度お試しください。"
+        })
+    }
+}
+
+//  体重投稿処理
+async function handleWeightPost(replyToken: string, userId: string, message: string) {
+    try {
+        console.log(`[Weight] Processing: ${message}`)
+        const result = await weightAdviceService.recordWeight(userId, message)
+        console.log(`[Weight] Service returned:`, result)
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.advice })
+        console.log(`[Weight] Reply sent successfully`)
+    } catch (error) {
+        console.error("[Weight] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "申し訳ございません。体重記録の保存に失敗しました。もう一度お試しください。"
+        })
+    }
+}
+
+//  週次レポートの判定
+async function handleWeeklyReport(replyToken: string, userId: string, message: string) {
+    try {
+        console.log(`[WeeklyReport] Processing: ${message}`)
+        const result = await weeklyReportService.generateWeeklyReport(userId)
+        console.log(`[WeeklyReport] Service returned:`, result)
+        const messages = buildWeeklyReportMessages(result)
+        await lineClient.replyMessage(replyToken, messages)
+        console.log(`[WeeklyReport] Reply sent successfully`)
+    } catch (error) {
+        console.error("[WeeklyReport] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "申し訳ございません。週次レポートの生成に失敗しました。もう一度お試しください。"
+        })
+    }
+}
+
+async function handleProfileUpdate(replyToken: string, lineUserId: string, userMessage: string) {
+    try {
+        const result = await profileService.updateProfileFromText(lineUserId, userMessage)
+        if (result.user) {
+            console.log(`[Profile] Updated user profile:`, {
+                lineUserId,
+                height: result.user.height,
+                age: result.user.age,
+                gender: result.user.gender
+            })
+        } else {
+            console.log(`[Profile] LLM rejected update: ${result.message}`)
+        }
+        await lineClient.replyMessage(replyToken, { type: "text", text: result.message })
+    } catch (error) {
+        console.error("[Profile] Error:", error)
+        await lineClient.replyMessage(replyToken, {
+            type: "text",
+            text: "プロフィールの更新に失敗しました。入力内容をご確認のうえ、もう一度お試しください。"
         })
     }
 }

@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant L as LINE Platform
+    participant C as presentation/controllers/lineWebhookController.ts
+    participant V as presentation/validators/lineEventValidator.ts
+    participant H as presentation/handlers/messageHandler.ts
+    participant S as domain/services/weightAdvice.ts
+    participant P as infrastructure/prisma/client.ts
+    participant G as Gemini (LLM)
+    participant B as infrastructure/line/lineMessageBuilder.ts
+
+    U->>L: 「体重 72.3kg」などのテキスト投稿
+    L->>C: Webhook(POST /webhook)
+    C->>V: イベント検証（署名・種別・テキスト抽出）
+    V-->>C: 検証OK（テキストとuserId）
+    C->>H: handleMessage(event)
+
+    rect rgb(245,245,245)
+        Note over H: トリガー判定
+        H->>H: メッセージが「体重」で始まるか判定
+        H->>S: recordWeight(userId, text)
+    end
+
+    rect rgb(240,250,255)
+        Note over S: アドバイス＆整合チェック
+        S->>P: weight_records を userId で SELECT（直近N件）
+        S->>G: プロンプト送信（履歴 + ユーザー入力）
+        G-->>S: { parsedWeightKg, isAnomalous, advice }
+    end
+
+    alt isAnomalous == true
+        S-->>H: 保存せず、注意喚起メッセージ + アドバイス
+    else parsedWeightKg が数値
+        S->>P: INSERT weight_records { userId, weight: parsedWeightKg, recordedAt: now }
+        P-->>S: 作成結果
+        S-->>H: 保存完了メッセージ + アドバイス
+    end
+
+    H->>B: 返信メッセージ構築
+    B-->>H: LINEメッセージ
+    H->>L: replyMessage
+    L-->>U: 返信表示
+
+    %% 備考
+    %% - 体重が異常値の場合（例: 前回から±10kgなど）: LLMが isAnomalous=true と判断
+    %% - isAnomalous=true のときは DB を更新しない
+    %% - advice は履歴の傾向（増減・頻度）を含める
+

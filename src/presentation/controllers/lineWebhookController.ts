@@ -7,14 +7,14 @@ export async function lineWebhookController(req: Request): Promise<Response> {
     console.log("[Webhook] Received webhook request")
 
     const signature = req.headers.get("x-line-signature") ?? undefined // 署名検証
-    const bodyText = await req.text() // リクエストボディを取得
+    const bodyBuffer = await req.arrayBuffer() // 生バイトを取得
 
-    if (!verifyLineSignature(bodyText, signature)) {
+    if (!verifyLineSignature(bodyBuffer, signature)) {
         console.log("[Webhook] Signature verification failed")
         return new Response("invalid signature", { status: 403 }) // 署名検証失敗
     }
 
-    const body = JSON.parse(bodyText) // リクエストボディをJSONにパース
+    const body = JSON.parse(new TextDecoder().decode(new Uint8Array(bodyBuffer))) // 署名検証後にJSONへパース
     const events: WebhookEvent[] = body.events ?? []
     console.log(`[Webhook] Processing ${events.length} events`)
 

@@ -208,11 +208,11 @@ __marimo__/
 
 
 node_modules/
-.env
 # 環境変数ファイル
-.env
 .env.local
 .env.*
+.env
+.env.cloudsql_proxy
 !.env.example
 !.env.sample
 

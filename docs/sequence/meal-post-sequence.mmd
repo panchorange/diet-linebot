@@ -1,0 +1,48 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant L as LINE Platform
+    participant C as presentation/controllers/lineWebhookController.ts
+    participant V as presentation/validators/lineEventValidator.ts
+    participant H as presentation/handlers/messageHandler.ts
+    participant S as domain/services/mealAdvice.ts
+    participant P as infrastructure/prisma/client.ts
+    participant G as Gemini (LLM)
+    participant B as infrastructure/line/lineMessageBuilder.ts
+
+    U->>L: 「食事 唐揚げ 150g 昼」などのテキスト/画像投稿
+    L->>C: Webhook(POST /webhook)
+    C->>V: イベント検証（署名・種別・テキスト/画像抽出）
+    V-->>C: 検証OK（テキスト/画像URLとuserId）
+    C->>H: handleMessage(event)
+
+    rect rgb(245,245,245)
+        Note over H: トリガー判定
+        H->>H: メッセージが「食事」で始まるか判定
+        H->>S: recordMeal(userId, text, image?)
+    end
+
+    rect rgb(240,250,255)
+        Note over S: 抽出＆アドバイス
+        S->>P: mst_meals を SELECT（名称と栄養/100g）
+        S->>G: プロンプト送信（候補マスタ + ユーザー入力 + 画像URL任意）
+        G-->>S: { mealId, mealName, amountGrams, mealType, calories, pfc, advice }
+    end
+
+    alt mealId がDBに存在
+        S->>P: INSERT meal_records { userId, mealId, mealType, amount, recordedAt: now }
+        P-->>S: 作成結果
+        S-->>H: 保存完了メッセージ + 栄養情報 + アドバイス
+    else 不明/曖昧
+        S-->>H: 保存せず、再入力依頼（例: 量[g]や料理名の明確化）
+    end
+
+    H->>B: 返信メッセージ構築
+    B-->>H: LINEメッセージ
+    H->>L: replyMessage
+    L-->>U: 返信表示
+
+    %% 備考
+    %% - 画像は将来的にVisionモデルで栄養推定。現状はテキスト優先。
+    %% - マスタ未一致時はユーザーに確認を返し、DB更新は行わない。
+

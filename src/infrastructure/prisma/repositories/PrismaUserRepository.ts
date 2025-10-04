@@ -16,6 +16,9 @@ export class PrismaUserRepository implements IUserRepository {
             id: user.id,
             name: user.displayName,
             line_user_id: user.lineUserId,
+            height: user.height,
+            age: user.age,
+            gender: user.gender ?? null,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt
         }
@@ -36,6 +39,41 @@ export class PrismaUserRepository implements IUserRepository {
             id: user.id, // 実際のDBのcuidを使用
             name: user.displayName,
             line_user_id: user.lineUserId,
+            height: user.height,
+            age: user.age,
+            gender: user.gender ?? null,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+        }
+    }
+
+    async updateProfile(
+        lineUserId: string,
+        profile: { height?: number | null; age?: number | null; gender?: "male" | "female" | "other" | null }
+    ): Promise<User> {
+        const user = await prisma.user.upsert({
+            where: { lineUserId },
+            update: {
+                height: profile.height ?? undefined,
+                age: profile.age ?? undefined,
+                gender: profile.gender ?? undefined
+            },
+            create: {
+                lineUserId,
+                displayName: "unknown",
+                height: profile.height ?? undefined,
+                age: profile.age ?? undefined,
+                gender: profile.gender ?? undefined
+            }
+        })
+
+        return {
+            id: user.id,
+            name: user.displayName,
+            line_user_id: user.lineUserId,
+            height: user.height,
+            age: user.age,
+            gender: user.gender ?? null,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt
         }

@@ -2,11 +2,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator erd {
-  provider = "prisma-erd-generator"
-  output   = "../docs/database/ERD.svg"  // .svg/.png/.pdf/.md が選べる
-  theme    = "forest"                     // 任意: default/forest/dark/neutral
-}
+// ERD生成(docker buildする時にはコメントアウトする)
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../docs/database/ERD.svg"  // .svg/.png/.pdf/.md が選べる
+//   theme    = "forest"                     // 任意: default/forest/dark/neutral
+// }
 
 datasource db {
   provider = "postgresql"
@@ -41,7 +42,7 @@ model User {
 
 // 食事マスタテーブル
 model MealMaster {
-  id                   String @id @default(cuid())
+  id                   Int  @id @default(autoincrement())
   name                 String
   caloriePer100g       Float  // カロリー/100g
   proteinPer100g       Float  // タンパク質/100g
@@ -59,17 +60,24 @@ model MealMaster {
 // 食事記録テーブル
 model MealRecord {
   id         String   @id @default(cuid())
+  userMealId String   @default(uuid()) // ユーザーが食事を特定できるID (1回の食事であっても複数の品目が存在し得る)
   userId     String
-  mealId     String
+  mealId     Int? // 食事が特定できない場合は nulls 
   mealType   MealType // 朝食、昼食、夕食、間食
-  amount     Float    // 量[g]
+  amountGrams Float? // 量[g]
+  calories   Float? // カロリー
+  protein    Float? // タンパク質
+  fat        Float? // 脂質
+  carbohydrate Float? // 炭水化物
+  advice     String? // アドバイス
+  score      Int? // 評価スコア（1-100）
   recordedAt DateTime // 記録日時
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
   // リレーション
-  user User        @relation(fields: [userId], references: [id])
-  meal MealMaster  @relation(fields: [mealId], references: [id])
+  user User         @relation(fields: [userId], references: [id])
+  meal MealMaster?  @relation(fields: [mealId], references: [id])
   
   @@index([userId])
   @@index([mealId])

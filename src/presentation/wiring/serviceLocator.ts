@@ -1,11 +1,16 @@
 // 役割: 依存解決（UserService と Exercise Service の組み立て）
 
-import { exerciseService } from "../../domain/services/exerciseService"
+import { exerciseService } from "../../domain/services/exerciseAdvice"
 import { exerciseWeeklyReportService } from "../../domain/services/exerciseWeeklyReportService"
+import { mealAdviceService } from "../../domain/services/mealAdvice"
+import { ProfileService } from "../../domain/services/profileService"
 import { UserService } from "../../domain/services/userService"
+import { weeklyReportService } from "../../domain/services/weeklyReportService"
+import { weightAdviceService } from "../../domain/services/weightAdvice"
 import { PrismaUserRepository } from "../../infrastructure/prisma/repositories/PrismaUserRepository"
 
 const userRepository = new PrismaUserRepository()
 export const userService = new UserService(userRepository)
+export const profileService = new ProfileService(userRepository)
 
-export { exerciseService, exerciseWeeklyReportService }
+export { exerciseService, exerciseWeeklyReportService, weightAdviceService, mealAdviceService, weeklyReportService }

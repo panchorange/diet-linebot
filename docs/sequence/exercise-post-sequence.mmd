@@ -1,0 +1,34 @@
+%% 運動投稿（Exercise Post）フロー - SequenceDiagram
+sequenceDiagram
+    actor User as ユーザー
+    participant LINE as LINE Platform
+    participant C as Controller(/webhook)
+    participant H as MessageHandler
+    participant US as UserService
+    participant ES as ExerciseService
+    participant DB as PostgreSQL(DB)
+    participant LC as LINE Client
+
+    User->>LINE: メッセージ送信「運動 ジョギング 30分」
+    LINE->>C: POST /webhook (events)
+    C->>C: 署名検証
+    C->>H: event を委譲
+
+    H->>US: registerOrFetchByLineId(lineUserId, name)
+    US->>DB: upsert users
+    DB-->>US: user{ id, name, ... }
+    US-->>H: user
+
+    Note right of H: テキスト先頭が「運動」であるかを判定
+
+    H->>ES: recordExercise(user.id, text)
+    Note right of ES: テキストから運動名/分数を推定しカロリー算出
+    ES->>DB: upsert/select mst_exercises
+    DB-->>ES: exerciseMaster
+    ES->>DB: insert exercise_records
+    DB-->>ES: saved record
+    ES-->>H: ExerciseSavedView(message, duration, calories,...)
+
+    H->>LC: replyMessage(replyToken, message)
+    LC-->>LINE: reply
+    LINE-->>User: 返信表示

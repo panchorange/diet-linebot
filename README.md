@@ -26,23 +26,14 @@ bun install
 ```
 
 #### 2.3 環境変数の設定
-プロジェクトルートに `.env` ファイルを作成し、以下の環境変数を設定してください：
+プロジェクトルートに `.env` あるいは `.env.local` を用意します（具体値は記載不要、実行時に `--env-file` を使います）。主要キー例のみ示します:
 
 ```bash
-# LINE Bot の設定
-# LINE Developersコンソールから取得
-CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
-CHANNEL_SECRET=your_channel_secret_here
-
-# Google Gemini AI の設定  
-# Google AI Studioから取得
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# サーバーポート（オプション、デフォルト: 3000）
+LINE_CHANNEL_ACCESS_TOKEN=...
+LINE_CHANNEL_SECRET=...
+GEMINI_API_KEY=...
+IMGBB_API_KEY=...
 PORT=3000
-
-# プッシュメッセージ送信先のユーザーID（オプション）
-LINE_USER_ID=your_line_user_id_here
 ```
 
 bunが認識してるか確認。
@@ -59,8 +50,8 @@ bun --print "Bun.env.PORT"
 1. [LINE Developers](https://developers.line.biz/) にアクセス
 2. 新しいプロバイダーとチャンネルを作成
 3. 「Messaging API」タブから以下を取得：
-   - `Channel access token` → `CHANNEL_ACCESS_TOKEN`
-   - `Channel secret` → `CHANNEL_SECRET`
+   - `Channel access token` → `LINE_CHANNEL_ACCESS_TOKEN`
+   - `Channel secret` → `LINE_CHANNEL_SECRET`
 
 #### 3.2 Google AI Studio の設定
 1. [Google AI Studio](https://aistudio.google.com/) にアクセス
@@ -127,7 +118,7 @@ ngrok http 3000
 2. LINEアプリでBotを友だち追加
 3. 食事に関するメッセージや画像を送信して動作確認
 
-### 7.リンター%フォーマッター(Biome)
+### 7. リンター&フォーマッター(Biome)
 https://biomejs.dev/ja/guides/getting-started/
 
 
@@ -166,42 +157,62 @@ bunx --bun biome check --write <files>
 
 ## prisma関連
 
-スキーマの更新
+### スキーマの更新
 * スキーマの更新は、prisma/migrationsの作成と、対応するdbへの反映を意味する
 * .env.localにdatabase_urlを定義した状態で以下を実行すると、ローカルのpsqlのスキーマ更新がされる
 ```bash
-bun run dotenv -e .env.local -- prisma migrate dev --name
-[更新内容を記載]
+bun run dotenv -e .env.local -- prisma migrate dev --name [更新内容を記載]
 ```
 
-* 特定のバージョンまでロールバックしたい場合
-   * 20250822135145_update_test_prisma_add_comment_nullable_name まで戻したいとき
+### 特定のバージョンまでロールバックしたい場合
+20250822135145_update_test_prisma_add_comment_nullable_name まで戻したいとき：
 ```bash
 bun run dotenv -e .env.local -- prisma migrate resolve --rolled-back 20250822135145_update_test_prisma_add_comment_nullable_name
 ```
 
-* マイグレーション履歴の確認
+### マイグレーション履歴の確認
 ```bash
 bun run dotenv -e .env.local -- prisma migrate status
 ```
 
-
-* prisma studioの起動: データの確認
+### Prisma Studioの起動（データの確認）
 ```bash
 bun run dotenv -e .env.local -- prisma studio &
 ```
 
-* ER図の生成
-前提条件. prisma/schema.prismaで"prisma-erd-generator"の設定をしておく
+### ER図の生成
+前提条件: prisma/schema.prismaで"prisma-erd-generator"の設定をしておく
 ```bash
 bun prisma generate
 ```
 
-* mmdからsvg生成（必要な場合のみ）
+### MermaidからSVG生成
+docs/system_overview.mmdからsvgを生成する場合：
 ```bash
 ./node_modules/.bin/mmdc -i docs/system_overview.mmd -o docs/system_overview.svg -b transparent -t neutral
 ./node_modules/.bin/mmdc -i docs/sequence/message-post-sequence.mmd -o docs/sequence/message-post-sequence.svg -b transparent -t neutral
 ./node_modules/.bin/mmdc -i docs/sequence/weekly-report.mmd -o docs/sequence/weekly-report.svg -b transparent -t neutral
+```
+
+## Docker（Apple Silicon / arm64）
+
+MシリーズMacでのビルド・実行例。環境変数は `.env` または `.env.local` を使い、具体値は書かず `--env-file` で渡します。
+
+```bash
+# 変数は.env等で定義しておく（例）
+# PROJECT_ID, REGION, REPOSITORY, SERVICE, TAG, IMAGE など
+
+# arm64でビルド
+docker buildx build --platform linux/arm64 -t "$IMAGE" .
+
+# .env.local を取り込む開発用イメージ（任意）
+# docker buildx build --platform linux/arm64 -f Dockerfile.local -t "$IMAGE" .
+
+# 実行（envファイルを読み込む）
+docker run --rm -p 8080:8080 --env-file .env.local "$IMAGE"
+
+# プッシュ（任意）
+docker push "$IMAGE"
 ```
 
 ## 関連READMEの役割

@@ -21,20 +21,31 @@
         "@line/bot-sdk": "^10.0.0",
         "@prisma/client": "^6.14.0",
         "@types/express": "^5.0.3",
+        "canvas": "^3.2.0",
+        "chart.js": "^4.5.0",
         "express": "^5.1.0",
         "node-cron": "^4.2.1",
         "nodejs-polars": "^0.21.1",
         "polars": "^0.0.1"
     },
     "scripts": {
-        "dev": "bun --hot src/index.ts",
+        "dev": "bunx dotenv --dotenv-expand -e .env.local -- bun --hot src/index.ts",
+        "dev:cloudsql": "bunx dotenv --dotenv-expand -e .env -- bun --hot src/index.ts",
         "build": "bun build src/index.ts --outdir ./dist",
         "start": "bun src/index.ts",
-        "db:generate": "bun prisma generate",
-        "db:migrate": "bun prisma migrate dev",
-        "db:studio": "bun prisma studio",
-        "docs:generate": "bun prisma generate && ./node_modules/.bin/mmdc -i docs/database/ERD.mmd -o docs/database/ERD.svg -b transparent",
+        "db:generate": "bunx prisma generate",
+        "db:migrate:local": "bunx dotenv --dotenv-expand -e .env.local -- bunx prisma migrate deploy",
+        "db:migrate:cloudsql": "bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bunx prisma migrate deploy",
+        "db:seed:local": "bunx dotenv --dotenv-expand -e .env.local -- bun prisma/seed.ts",
+        "db:seed:cloudsql": "bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bun prisma/seed.ts",
+        "db:studio:local": "bunx dotenv --dotenv-expand -e .env.local -- bunx prisma studio",
+        "db:studio:cloudsql": "bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bunx prisma studio",
+        "db:reset:local": "bunx dotenv --dotenv-expand -e .env.local -- bunx prisma migrate reset",
+        "docs:generate": "bunx prisma generate && ./node_modules/.bin/mmdc -i docs/database/ERD.mmd -o docs/database/ERD.svg -b transparent",
         "lint": "biome check .",
         "lint:fix": "biome check --write ."
+    },
+    "prisma": {
+        "seed": "bun prisma/seed.ts"
     }
 }

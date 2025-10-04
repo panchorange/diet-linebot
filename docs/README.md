@@ -1,63 +1,184 @@
-# 開発者向けドキュメント（docs/）
+# サマリ
+本ドキュメントは、開発メンバーがリポジトリ内の設計・運用情報へ素早くアクセスできるようにまとめた索引です。詳しい仕様や作業手順は各ファイル／コマンドに委譲しているため、必要に応じてリンク先を参照してください。
 
-目的: 機能追加・保守運用に必要な設計情報を集約。各仕様書の役割を理解し、`src/` 実装の入力として活用する。
-
-### ドキュメント一覧（ファイル名 / プロジェクトルートからのパス / 目的）
-
-| ファイル名 | パス | 目的 |
-|---|---|---|
-| feature_list.md | `docs/feature_list/feature_list.md` | 実装対象機能の一覧（計画含む）。各機能から図や実装へ辿る起点。 |
-| requirements.md | `docs/requirements.md` | 機能/非機能要件、前提、制約、技術スタック。期待仕様の基準。 |
-| system_overview.mmd | `docs/system_overview.mmd` | システム全体の俯瞰（ユーザー/LINE/アプリ/DB/AI/スケジューラの関係）。 |
-| architecture.svg | `docs/architecture.svg` | レイヤ構造（Presentation→Domain→Infrastructure）と依存方向の可視化。 |
-| database/ERD.md | `docs/database/ERD.md` | データモデル（Mermaid ERD）。テーブル/列挙/リレーションの把握。 |
-| database/ERD.svg | `docs/database/ERD.svg` | ERDの画像版（レビュー/共有用）。 |
-| sequence/message-post-sequence.mmd | `docs/sequence/message-post-sequence.mmd` | Webhook受信→処理→返信の時系列。メッセージ投稿の詳細フロー。 |
-| sequence/weekly-report.mmd | `docs/sequence/weekly-report.mmd` | 週次レポート生成→Pushの時系列。スケジューラの詳細フロー。 |
-| project-structure.md | `docs/structure/project-structure.md` | リポジトリのディレクトリ構成（tree形式）。レイヤ/責務/依存の俯瞰。 |
-
-### ドキュメント間の関係性（インプット → アウトプット）
-
-- requirements.md → feature_list.md  
-  - 要件を基に「何を作るか」を列挙・優先づけ。
-
-- requirements.md → system_overview.mmd / architecture.svg  
-  - 期待する振る舞い・非機能を踏まえ、全体構成と依存関係を設計。
-
-- feature_list.md → sequence/message-post-sequence.mmd・sequence/weekly-report.mmd  
-  - 各機能の起点/終点/参加者/データの流れを時系列で具体化。
-
-- database/ERD.md ↔ sequence/*.mmd  
-  - フローで必要な入出力・集計要件と、ERの粒度/関係を相互に擦り合わせ。  
-  - 補足: 実DBスキーマは `prisma/schema.prisma`（docs外）。ERDはこれと相互参照しつつ維持。
-
-- system_overview.mmd / architecture.svg → 実装方針（`src/`）  
-  - ディレクトリ/責務の割当、依存方向（Presentation→Domain→Infrastructure）の遵守に反映。
-
-### 生成・更新の推奨フロー
-
-1. requirements.md を更新（要求変更の取り込み）
-2. feature_list.md を更新（対象機能/優先度の見直し、ブランチ名の管理）
-3. system_overview.mmd / architecture.svg を更新（構成影響を反映）
-4. database/ERD.md を更新（データ構造の反映。必要に応じて `prisma/schema.prisma` と整合）
-5. sequence/*.mmd を更新（処理フローの確定）
-6. 実装（`src/`）を更新（実装導線の整備）
+- **開発者向けドキュメント**: 設計資料の所在と更新手順
+- **データベース**: ローカル／Cloud SQL の準備と Prisma スクリプト
+- **GCP へのデプロイ**: Cloud Build → Artifact Registry → Cloud Run の流れ
+- **環境変数**: `.env.*` の使い分けと注意点
 
 ---
 
-### 実装リマインド（src/構成の要点）
+## 1. 開発者向けドキュメント
 
-- エントリポイント: `src/index.ts`（Bunサーバ）
+### 1.1 設計資料の所在
+
+| 種別 | ファイル | 概要 |
+|---|---|---|
+| 機能一覧 | `docs/feature_list/feature_list.md` | 実装予定の機能を網羅し、優先度・ステータスを管理。 |
+| 要件定義 | `docs/requirements_definition/requirements_definition.md` | 機能/非機能要件・制約・前提。合意済み仕様の参照元。 |
+| システム構成 | `docs/system_overview.mmd` / `docs/architecture.svg` | 外部連携やレイヤ構成の俯瞰図。依存方向を確認。 |
+| DB 設計 | `docs/database/ERD.md` / `docs/database/ERD.svg` | テーブルと関連の設計。`prisma/schema.prisma` と常に同期。 |
+| 処理シーケンス | `docs/sequence/message-post-sequence.mmd` / `docs/sequence/weekly-report.mmd` | Webhook/週次レポートの時系列フロー。ハンドラ実装時に参照。 |
+| リポジトリ構造 | `docs/structure/project-structure.md` | ディレクトリ責務の一覧。新規メンバーの導線。 |
+
+### 1.2 ドキュメント更新フロー
+
+1. `requirements_definition.md` で要件を更新。
+2. `feature_list.md` に対象機能と優先度を反映。
+3. `system_overview.mmd` と `architecture.svg` で構成影響を整理。
+4. `docs/database/ERD.md` と `prisma/schema.prisma` を同期。
+5. `docs/sequence/*.mmd` で処理の詳細を確定。
+6. `src/` 実装と Prisma マイグレーションを更新。
+
+### 1.3 実装参照ポイント
+
+- エントリポイント: `src/index.ts`
   - `POST /webhook` → `presentation/controllers/lineWebhookController.ts`
-  - `GET /reports/exercise/weekly` → `domain/services/exerciseWeeklyReportService`
-  - 起動時に `presentation/scheduler/weeklyReportScheduler.ts` を開始
-- レイヤ: Presentation → Domain → Infrastructure（一方向）
-- 主なサービス: `userService`, `exerciseService`, `exerciseWeeklyReportService`
-- Prisma: `infrastructure/prisma/client.ts`（DB I/O）、`repositories/PrismaUserRepository.ts`
+  - `GET /reports/exercise/weekly` → `domain/services/exerciseWeeklyReportService.ts`
+  - アプリ起動時に `presentation/scheduler/weeklyReportScheduler.ts` を登録
+- レイヤ構造: Presentation → Domain → Infrastructure（一方向依存）
+- Prisma クライアント: `infrastructure/prisma/client.ts`
+- 主要サービス: `userService`, `exerciseWeeklyReportService`, `exerciseService` (alias)
+- 詳細な仕様は各ファイル先頭コメントと型定義を参照
 
-詳細な実装の説明は各ソースファイルの先頭コメントを参照してください。
+### 1.4 アーキテクチャ概要（3層）
 
-### 備考
+- **ディレクトリ構成**: `src/presentation/`（エンドポイント・LINE連携）、`src/domain/`（ユースケース・モデル）、`src/infrastructure/`（Prisma や外部API）で三層アーキテクチャを維持。
+- **DB三層スキーマ**: 概念スキーマは `src/domain/models/ConceptualSchema.ts`、論理スキーマは `docs/database/ERD.md`、物理スキーマは `prisma/schema.prisma`（および `prisma/migrations/`）。それぞれを同期させる。
+- **外部公開用ビュー**: `src/domain/models/ExternalViews.ts` が Presentation 層向けの出力フォーマットを定義し、三層間の境界を明示している。
 
-- Mermaid→画像（SVG）出力は適宜ツールで生成します（例: ERDは `docs/database/ERD.svg`）。  
-- 「インプットがリポジトリ外」の場合は関係性に「不明」または出典（例: 事業要件の外部資料）を注記してください。
+---
+
+## 2. データベース
+
+### 2.1 Prisma スクリプト一覧（`package.json`）
+
+| コマンド | 目的 | 読み込む env |
+|---|---|---|
+| `bun run db:generate` | Prisma Client の再生成 | - |
+| `bun run db:migrate:local` | ローカルDBにマイグレーションを適用 | `.env.local` |
+| `bun run db:seed:local` | ローカルDBへシード投入 | `.env.local` |
+| `bun run db:studio:local` | Prisma Studio（ローカル接続） | `.env.local` |
+| `bun run db:reset:local` | ローカルDBを初期化（破壊的） | `.env.local` |
+| `bun run db:migrate:cloudsql` | Cloud SQL にマイグレーションを適用 | `.env` など Cloud SQL 用 env |
+| `bun run db:seed:cloudsql` | Cloud SQL へシード投入 | 同上 |
+| `bun run db:studio:cloudsql` | Prisma Studio（Cloud SQL 接続） | 同上 |
+
+### 2.2 ローカル PostgreSQL（Docker Compose）
+
+1. コンテナ起動
+   ```bash
+   docker compose up -d
+   ```
+2. `.env.local` を作成し、`DATABASE_URL=postgresql://admin:hoge@localhost:5432/linebot-db?schema=public` などを設定。その他の開発用トークンもここに置く。
+3. Prisma 実行
+   ```bash
+   bun run db:migrate:local
+   bun run db:seed:local
+   ```
+4. 確認
+   ```bash
+   bun run db:studio:local
+   # または docker exec -it linebot-db psql -U admin -d linebot-db
+   ```
+
+### 2.3 Cloud SQL をローカルから操作する
+
+1. Cloud SQL Proxy を起動（別ターミナルで保持）
+   ```bash
+   cloud-sql-proxy --port 5433 diet-linebot-467114:asia-northeast1:diet-linebot-pg
+   ```
+2. Cloud SQL 用 env を作成（例: `.env.cloudsql_proxy`）
+   ```env
+   PSQL_USER=postgres
+   PSQL_PW=<URL_ENCODED_PASSWORD>
+   PSQL_DB=diet_linebot
+   PSQL_HOST=127.0.0.1
+   PSQL_PORT=5433
+   DATABASE_URL=postgresql://${PSQL_USER}:${PSQL_PW}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}?schema=public
+   ```
+3. Prisma 実行
+   ```bash
+   bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bunx prisma migrate deploy
+   bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bun prisma/seed.ts
+   bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bunx prisma studio
+   ```
+   ※ Proxy を停止すると Cloud SQL との接続は切断される。
+
+### 2.4 シードスクリプト概要
+
+- 入口: `prisma/seed.ts`
+- マスタ定義: `prisma/seeds/*.ts`（例: `mealMaster`, `exerciseMaster`）
+- 動作: `upsert` による再実行可能な同期。未使用レコードは必要に応じて削除。
+- 想定用途: 初期投入、マスタの同期、緊急修正の反映。
+- 実行後は Prisma Studio や `psql` で `mst_meals`, `mst_exercises` を確認。
+
+---
+
+## 3. GCP へのデプロイ
+
+### 3.1 前提
+
+- `gcloud` CLI / Docker がインストール済み
+- GCP プロジェクト、Artifact Registry、Cloud Run、Cloud SQL が準備済み
+- Secret Manager に `DATABASE_URL`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `GEMINI_API_KEY`, `IMGBB_API_KEY` を登録済み
+
+### 3.2 Cloud Build でビルド & プッシュ
+
+```bash
+PROJECT_ID=diet-linebot-467114
+REGION=asia-northeast1
+IMAGE_TAG=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/diet-linebot/diet-linebot:0.0.1
+
+gcloud config set project ${PROJECT_ID}
+gcloud services enable artifactregistry.googleapis.com run.googleapis.com
+gcloud builds submit --tag ${IMAGE_TAG} .
+```
+
+### 3.3 Cloud Run へデプロイ
+
+```bash
+SERVICE=diet-linebot
+INSTANCE=${PROJECT_ID}:${REGION}:diet-linebot-pg
+
+gcloud run deploy ${SERVICE} \
+  --image ${IMAGE_TAG} \
+  --region ${REGION} \
+  --allow-unauthenticated \
+  --add-cloudsql-instances ${INSTANCE} \
+  --set-secrets=DATABASE_URL=DATABASE_URL:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest,LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,IMGBB_API_KEY=IMGBB_API_KEY:latest
+```
+
+- Cloud Run では `$PORT` が注入されるため、`src/index.ts` は自動で該当ポートを使用。
+- Prisma の接続数は `?connection_limit=` を利用して Cloud SQL の上限に合わせる。
+
+### 3.4 Cloud SQL 用 DSN の作成
+
+```bash
+node -e 'console.log(encodeURIComponent(process.argv[1]))' '<PLAIN_PASSWORD>'
+```
+
+- 上記で取得した値を `DATABASE_URL=postgresql://${USER}:${PW}@/${DB}?host=/cloudsql/${INSTANCE}&schema=public` に埋め込み、Secret Manager の `DATABASE_URL` として保存。
+- GUI（Cloud SQL Studio、DBeaver）で確認する場合は Cloud SQL Proxy (TCP) を利用し、`127.0.0.1:5433` 経由で接続。
+
+---
+
+## 4. 環境変数
+
+| ファイル | 用途 | 主な設定例 |
+|---|---|---|
+| `.env.local` | 完全ローカル（Docker Compose）での開発・テスト。`bun run dev` やローカルDB系スクリプトが参照。 | `DATABASE_URL=postgresql://admin:hoge@localhost:5432/linebot-db?schema=public` |
+| `.env` | Cloud Run 本番用。Unix ソケット経由で Cloud SQL に接続。`bun run dev:cloudsql` で使う場合は Cloud SQL Proxy を対応させる。 | `DATABASE_URL=postgresql://${USER}:${PW}@/${DB}?host=/cloudsql/${INSTANCE}&schema=public` |
+| `.env.cloudsql_proxy` など | ローカルから Cloud SQL Proxy (TCP) に接続してマイグレーション／シードを流す用途。 | `DATABASE_URL=postgresql://${USER}:${PW}@127.0.0.1:5433/${DB}?schema=public` |
+
+- パスワードを含む値は URL エンコードしたものを使用（`bun eval 'console.log(encodeURIComponent("plain"))'`）。
+- Secrets はリポジトリへコミットしない。Cloud Run では Secret Manager から注入し、`.env.*` はコンテナに含めない。
+- `bun run dev:cloudsql` は `.env` を読み込み、Cloud SQL に接続した状態でホットリロード起動する。実行前に Cloud SQL Proxy を正しいモードで立ち上げる。
+
+---
+
+### 補足
+
+- Mermaid 図などの生成: `bun run docs:generate`
+- 不明点は該当ディレクトリの README やコメントを参照し、差分は Pull Request で共有。
+- Prisma や Bun のバージョンは `package.json` を確認。更新時は lockfile を合わせてコミットする。
