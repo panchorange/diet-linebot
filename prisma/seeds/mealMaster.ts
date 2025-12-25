@@ -1813,16 +1813,147 @@ export async function seedMealMaster() {
             proteinPer100g: 10,
             fatPer100g: 25,
             carbohydratePer100g: 58
+        },
+        {
+            id: 226,
+            name: "プロテイン(ホエイ)",
+            caloriePer100g: 400,
+            proteinPer100g: 80,
+            fatPer100g: 5,
+            carbohydratePer100g: 8
+        },
+        {
+            id: 227,
+            name: "とり天",
+            caloriePer100g: 240,
+            proteinPer100g: 18,
+            fatPer100g: 14,
+            carbohydratePer100g: 12
+        },
+        {
+            id: 228,
+            name: "水餃子",
+            caloriePer100g: 180,
+            proteinPer100g: 8,
+            fatPer100g: 7,
+            carbohydratePer100g: 22
+        },
+        {
+            id: 229,
+            name: "味噌カツ",
+            caloriePer100g: 320,
+            proteinPer100g: 16,
+            fatPer100g: 23,
+            carbohydratePer100g: 14
+        },
+        {
+            id: 230,
+            name: "酸辣湯",
+            caloriePer100g: 45,
+            proteinPer100g: 3,
+            fatPer100g: 2,
+            carbohydratePer100g: 5
+        },
+        {
+            id: 231,
+            name: "ワンタンスープ",
+            caloriePer100g: 60,
+            proteinPer100g: 4,
+            fatPer100g: 2,
+            carbohydratePer100g: 7
+        },
+        {
+            id: 232,
+            name: "カツサンド",
+            caloriePer100g: 290,
+            proteinPer100g: 12,
+            fatPer100g: 16,
+            carbohydratePer100g: 28
+        },
+        {
+            id: 233,
+            name: "照り焼きチキンバーガー",
+            caloriePer100g: 260,
+            proteinPer100g: 14,
+            fatPer100g: 12,
+            carbohydratePer100g: 26
+        },
+        {
+            id: 234,
+            name: "フィッシュバーガー",
+            caloriePer100g: 240,
+            proteinPer100g: 11,
+            fatPer100g: 11,
+            carbohydratePer100g: 27
+        },
+        {
+            id: 235,
+            name: "たらこパスタ",
+            caloriePer100g: 180,
+            proteinPer100g: 8,
+            fatPer100g: 7,
+            carbohydratePer100g: 24
+        },
+        {
+            id: 236,
+            name: "明太子パスタ",
+            caloriePer100g: 175,
+            proteinPer100g: 7,
+            fatPer100g: 6,
+            carbohydratePer100g: 24
+        },
+        {
+            id: 237,
+            name: "ジェノベーゼ",
+            caloriePer100g: 190,
+            proteinPer100g: 6,
+            fatPer100g: 9,
+            carbohydratePer100g: 22
+        },
+        {
+            id: 238,
+            name: "ポテトグラタン",
+            caloriePer100g: 150,
+            proteinPer100g: 5,
+            fatPer100g: 8,
+            carbohydratePer100g: 16
+        },
+        {
+            id: 239,
+            name: "クリームパスタ",
+            caloriePer100g: 200,
+            proteinPer100g: 7,
+            fatPer100g: 10,
+            carbohydratePer100g: 23
+        },
+        {
+            id: 240,
+            name: "ちゃんぽん",
+            caloriePer100g: 145,
+            proteinPer100g: 6,
+            fatPer100g: 5,
+            carbohydratePer100g: 21
         }
     ]
 
-    await prisma.$transaction(async (tx) => {
-        for (const row of rows) {
-            await tx.mealMaster.upsert({
-                where: { id: row.id },
-                update: row,
-                create: row
-            })
-        }
-    })
+    // バッチサイズを小さくしてタイムアウトを回避
+    const BATCH_SIZE = 100
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE)
+        await prisma.$transaction(
+            async (tx) => {
+                for (const row of batch) {
+                    await tx.mealMaster.upsert({
+                        where: { id: row.id },
+                        update: row,
+                        create: row
+                    })
+                }
+            },
+            {
+                timeout: 30000 // 30秒タイムアウト
+            }
+        )
+        console.log(`Inserted meal master batch ${i / BATCH_SIZE + 1}/${Math.ceil(rows.length / BATCH_SIZE)}`)
+    }
 }

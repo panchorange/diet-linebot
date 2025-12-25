@@ -78,5 +78,7 @@ export async function seedExerciseMaster() {
         await tx.$executeRawUnsafe(
             `SELECT setval(pg_get_serial_sequence('"mst_exercises"','id'), (SELECT COALESCE(MAX(id),0) FROM "mst_exercises"))`
         )
+    }, {
+        timeout: 30000 // 30秒タイムアウト
     })
 }

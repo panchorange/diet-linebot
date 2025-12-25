@@ -2,7 +2,7 @@
 本ドキュメントは、開発メンバーがリポジトリ内の設計・運用情報へ素早くアクセスできるようにまとめた索引です。詳しい仕様や作業手順は各ファイル／コマンドに委譲しているため、必要に応じてリンク先を参照してください。
 
 - **開発者向けドキュメント**: 設計資料の所在と更新手順
-- **データベース**: ローカル／Cloud SQL の準備と Prisma スクリプト
+- **データベース**: ローカル（Docker Compose）／本番（Neon）の準備と Prisma スクリプト
 - **GCP へのデプロイ**: Cloud Build → Artifact Registry → Cloud Run の流れ
 - **環境変数**: `.env.*` の使い分けと注意点
 
@@ -51,67 +51,125 @@
 
 ## 2. データベース
 
-### 2.1 Prisma スクリプト一覧（`package.json`）
+### 2.1 データベース構成
 
-| コマンド | 目的 | 読み込む env |
-|---|---|---|
-| `bun run db:generate` | Prisma Client の再生成 | - |
-| `bun run db:migrate:local` | ローカルDBにマイグレーションを適用 | `.env.local` |
-| `bun run db:seed:local` | ローカルDBへシード投入 | `.env.local` |
-| `bun run db:studio:local` | Prisma Studio（ローカル接続） | `.env.local` |
-| `bun run db:reset:local` | ローカルDBを初期化（破壊的） | `.env.local` |
-| `bun run db:migrate:cloudsql` | Cloud SQL にマイグレーションを適用 | `.env` など Cloud SQL 用 env |
-| `bun run db:seed:cloudsql` | Cloud SQL へシード投入 | 同上 |
-| `bun run db:studio:cloudsql` | Prisma Studio（Cloud SQL 接続） | 同上 |
+- **ローカル開発**: Docker Compose で PostgreSQL を起動
+- **本番環境**: Neon（サーバーレス PostgreSQL）を使用
 
 ### 2.2 ローカル PostgreSQL（Docker Compose）
 
-1. コンテナ起動
+#### セットアップ
+
+1. **コンテナ起動**
    ```bash
    docker compose up -d
    ```
-2. `.env.local` を作成し、`DATABASE_URL=postgresql://admin:hoge@localhost:5432/linebot-db?schema=public` などを設定。その他の開発用トークンもここに置く。
-3. Prisma 実行
+
+2. **`.env.local` を作成**
+   ```env
+   DATABASE_URL=postgresql://admin:hoge@localhost:5432/linebot-db?schema=public
+   LINE_CHANNEL_ACCESS_TOKEN=your_token
+   LINE_CHANNEL_SECRET=your_secret
+   GEMINI_API_KEY=your_gemini_key
+   IMGBB_API_KEY=your_imgbb_key
+   PORT=3000
+   ```
+
+3. **マイグレーション適用**
    ```bash
    bun run db:migrate:local
+   ```
+
+4. **シードデータ投入**
+   ```bash
    bun run db:seed:local
    ```
-4. 確認
+
+5. **確認**
    ```bash
+   # Prisma Studio で GUI 確認
    bun run db:studio:local
-   # または docker exec -it linebot-db psql -U admin -d linebot-db
+
+   # または psql で直接確認
+   docker exec -it linebot-db psql -U admin -d linebot-db
    ```
 
-### 2.3 Cloud SQL をローカルから操作する
+#### よく使うコマンド
 
-1. Cloud SQL Proxy を起動（別ターミナルで保持）
-   ```bash
-   cloud-sql-proxy --port 5433 diet-linebot-467114:asia-northeast1:diet-linebot-pg
-   ```
-2. Cloud SQL 用 env を作成（例: `.env.cloudsql_proxy`）
+| コマンド | 目的 |
+|---|---|
+| `bun run db:generate` | Prisma Client の再生成 |
+| `bun run db:migrate:local` | マイグレーション適用 |
+| `bun run db:seed:local` | シード投入 |
+| `bun run db:studio:local` | Prisma Studio 起動 |
+| `bun run db:reset:local` | DB 初期化（破壊的） |
+
+### 2.3 本番環境（Neon）
+
+#### 初期セットアップ
+
+1. **[Neon](https://neon.tech/) でプロジェクト作成**
+   - リージョン: Asia Pacific (Singapore) 推奨
+   - PostgreSQL バージョン: 16
+
+2. **接続 URL を取得**
+   - Neon ダッシュボードで「Connect」→ 接続文字列をコピー
+   - 形式: `postgresql://user:password@ep-xxxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
+
+3. **`.env.neon` を作成（ローカルテスト用）**
    ```env
-   PSQL_USER=postgres
-   PSQL_PW=<URL_ENCODED_PASSWORD>
-   PSQL_DB=diet_linebot
-   PSQL_HOST=127.0.0.1
-   PSQL_PORT=5433
-   DATABASE_URL=postgresql://${PSQL_USER}:${PSQL_PW}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}?schema=public
+   DATABASE_URL=postgresql://user:password@ep-xxxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
    ```
-3. Prisma 実行
+
+4. **マイグレーション適用**
    ```bash
-   bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bunx prisma migrate deploy
-   bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bun prisma/seed.ts
-   bunx dotenv --dotenv-expand -e .env.cloudsql_proxy -- bunx prisma studio
+   bunx dotenv --dotenv-expand -e .env.neon -- bunx prisma migrate deploy
    ```
-   ※ Proxy を停止すると Cloud SQL との接続は切断される。
+
+5. **シードデータ投入**
+   ```bash
+   bunx dotenv --dotenv-expand -e .env.neon -- bun prisma/seed.ts
+   ```
+
+6. **確認**
+   ```bash
+   bunx dotenv --dotenv-expand -e .env.neon -- bunx prisma studio
+   ```
+
+#### Cloud Run への反映
+
+Secret Manager に DATABASE_URL を登録:
+
+```bash
+# DATABASE_URL を Secret Manager に登録
+echo -n 'postgresql://user:password@ep-xxxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require' | \
+gcloud secrets versions add DATABASE_URL --data-file=-
+
+# サービスアカウントに権限付与
+gcloud secrets add-iam-policy-binding DATABASE_URL \
+  --member="serviceAccount:111705422540-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
 
 ### 2.4 シードスクリプト概要
 
-- 入口: `prisma/seed.ts`
-- マスタ定義: `prisma/seeds/*.ts`（例: `mealMaster`, `exerciseMaster`）
-- 動作: `upsert` による再実行可能な同期。未使用レコードは必要に応じて削除。
-- 想定用途: 初期投入、マスタの同期、緊急修正の反映。
-- 実行後は Prisma Studio や `psql` で `mst_meals`, `mst_exercises` を確認。
+- **入口**: `prisma/seed.ts`
+- **マスタ定義**: `prisma/seeds/*.ts`（`mealMaster`, `exerciseMaster`）
+- **動作**: `upsert` による再実行可能な同期
+- **想定用途**: 初期投入、マスタ更新、緊急修正
+- **確認**: Prisma Studio で `mst_meals`, `mst_exercises` を確認
+
+**注意**: Neon 無料プランはトランザクションタイムアウトが短いため、シードスクリプトはバッチ処理（100件ごと）を実装済み。
+
+### 2.5 Cloud SQL 廃止の経緯（2025年12月）
+
+当初は Cloud SQL を使用していましたが、個人開発では以下の理由で Neon へ移行しました:
+
+- **コスト**: Cloud SQL は最小構成（db-f1-micro）でも月額 ¥1,200〜1,500
+- **常時課金**: アイドル時も課金が継続
+- **Neon の利点**: 無料枠（0.5GB）、自動スリープ、Cloud Run との統合が容易
+
+Cloud SQL を再利用する場合は、Git 履歴（2025年12月以前）を参照してください。
 
 ---
 
@@ -146,11 +204,12 @@ bun run deploy:cloudrun
 2. サービス名: `diet-linebot`、コンテナイメージ: push した URL を指定
 3. **変数とシークレット** タブで Secret Manager から環境変数を注入:
    - `DATABASE_URL`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `GEMINI_API_KEY`, `IMGBB_API_KEY`
-4. **接続** タブで Cloud SQL インスタンス (`diet-linebot-467114:asia-northeast1:diet-linebot-pg`) を追加
-5. **認証**: 未認証の呼び出しを許可（LINE からの Webhook を受信するため）
-6. 「デプロイ」をクリック
+4. **認証**: 未認証の呼び出しを許可（LINE からの Webhook を受信するため）
+5. 「デプロイ」をクリック
 
 エントリポイント: `src/index.ts`（デフォルト）
+
+**注意**: Neon を使用するため、Cloud SQL インスタンスへの接続設定は不要です。
 
 #### 3.3.b ジョブ（週次レポート配信）
 
@@ -160,11 +219,12 @@ bun run deploy:cloudrun
    - コンテナコマンド: `bun`
    - コンテナの引数: `src/cloudrunjobs/weeklyReportJob.ts`
 4. **変数とシークレット** タブで Secret Manager から環境変数を注入（サービスと同じ）
-5. **接続** タブで Cloud SQL インスタンス（サービスと同じ）を追加
-6. **タスクの容量**: 並列処理上限を `1` に設定（重複送信防止）
-7. 「作成」をクリック
+5. **タスクの容量**: 並列処理上限を `1` に設定（重複送信防止）
+6. 「作成」をクリック
 
 エントリポイント: `src/cloudrunjobs/weeklyReportJob.ts`（全ユーザーへ週次レポートを送信して終了）
+
+**注意**: Neon を使用するため、Cloud SQL インスタンスへの接続設定は不要です。
 
 #### ジョブのトリガー設定（Cloud Scheduler）
 
@@ -188,13 +248,19 @@ bun run deploy:cloudrun
 
 | ファイル | 用途 | 主な設定例 |
 |---|---|---|
-| `.env.local` | 完全ローカル（Docker Compose）での開発・テスト。`bun run dev` やローカルDB系スクリプトが参照。 | `DATABASE_URL=postgresql://admin:hoge@localhost:5432/linebot-db?schema=public` |
-| `.env` | Cloud Run 本番用。Unix ソケット経由で Cloud SQL に接続。`bun run dev:cloudsql` で使う場合は Cloud SQL Proxy を対応させる。 | `DATABASE_URL=postgresql://${USER}:${PW}@/${DB}?host=/cloudsql/${INSTANCE}&schema=public` |
-| `.env.cloudsql_proxy` など | ローカルから Cloud SQL Proxy (TCP) に接続してマイグレーション／シードを流す用途。 | `DATABASE_URL=postgresql://${USER}:${PW}@127.0.0.1:5433/${DB}?schema=public` |
+| `.env.local` | ローカル開発（Docker Compose）。`bun run dev` やローカル DB スクリプトで参照。 | `DATABASE_URL=postgresql://admin:hoge@localhost:5432/linebot-db?schema=public` |
+| `.env.neon` | Neon（本番 DB）への接続確認用。マイグレーション・シード投入時に使用。 | `DATABASE_URL=postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require` |
+| `.env` | Cloud Build / デプロイ用。`PROJECT_ID`, `REGION` などビルド時の変数を定義。 | `PROJECT_ID=diet-linebot-467114`<br>`REGION=asia-northeast1` |
 
-- パスワードを含む値は URL エンコードしたものを使用（`bun eval 'console.log(encodeURIComponent("plain"))'`）。
-- Secrets はリポジトリへコミットしない。Cloud Run では Secret Manager から注入し、`.env.*` はコンテナに含めない。
-- `bun run dev:cloudsql` は `.env` を読み込み、Cloud SQL に接続した状態でホットリロード起動する。実行前に Cloud SQL Proxy を正しいモードで立ち上げる。
+### 環境変数の管理
+
+- **ローカル開発**: `.env.local` に全ての開発用トークンを記載
+- **本番環境**: Secret Manager で管理し、Cloud Run で注入
+  - `DATABASE_URL`: Neon の接続文字列
+  - `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`: LINE API 認証
+  - `GEMINI_API_KEY`: Google Gemini API
+  - `IMGBB_API_KEY`: 画像ホスティング
+- **リポジトリへのコミット**: `.env.*` は全て `.gitignore` に含める
 
 ---
 
